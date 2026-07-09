@@ -17,6 +17,13 @@ export interface Profile {
   created_at: string;
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  manager_id: string | null;
+  parent_team_id: string | null;
+}
+
 export interface Period {
   id: string;
   team_id: string;

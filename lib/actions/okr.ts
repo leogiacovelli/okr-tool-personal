@@ -15,12 +15,18 @@ import type { ActionResult } from "@/lib/types";
  * qui serve solo a dare messaggi di errore chiari.
  */
 
-/** Contesto (nome membro, periodo) per le notifiche email al manager. */
+/**
+ * Contesto per le notifiche: il destinatario delle email di submit/proposta
+ * è l'APPROVATORE del proprietario, cioè il manager del suo team
+ * (organigramma), non più un "manager globale".
+ */
 async function setContext(setId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("okr_sets")
-    .select("id, profile_id, period_id, period:periods(label), owner:profiles(full_name, email)")
+    .select(
+      "id, profile_id, period_id, period:periods(label), owner:profiles(full_name, email, team_id)"
+    )
     .eq("id", setId)
     .single();
   if (!data) return null;
@@ -28,20 +34,33 @@ async function setContext(setId: string) {
     profile_id: string;
     period_id: string;
     period: { label: string } | null;
-    owner: { full_name: string; email: string } | null;
+    owner: { full_name: string; email: string; team_id: string } | null;
   };
-  const { data: manager } = await supabase
-    .from("profiles")
-    .select("email, full_name")
-    .eq("role", "manager")
-    .limit(1)
-    .maybeSingle();
+
+  let approverEmail: string | null = null;
+  if (row.owner?.team_id) {
+    const { data: team } = await supabase
+      .from("teams")
+      .select("manager_id")
+      .eq("id", row.owner.team_id)
+      .maybeSingle();
+    const managerId = (team as { manager_id: string | null } | null)?.manager_id;
+    if (managerId) {
+      const { data: approver } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", managerId)
+        .maybeSingle();
+      approverEmail = (approver as { email: string } | null)?.email ?? null;
+    }
+  }
+
   return {
     memberId: row.profile_id,
     periodId: row.period_id,
     periodLabel: row.period?.label ?? "",
     memberName: row.owner?.full_name || row.owner?.email || "Un membro del team",
-    managerEmail: (manager as { email: string } | null)?.email ?? null,
+    managerEmail: approverEmail,
   };
 }
 

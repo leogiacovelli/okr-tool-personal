@@ -62,3 +62,9 @@ export const inviteInput = z.object({
   email: z.string().trim().email("Email non valida"),
   full_name: z.string().trim().min(1, "Nome obbligatorio").max(200),
 });
+
+export const teamInput = z.object({
+  name: z.string().trim().min(1, "Nome del team obbligatorio").max(100),
+  manager_id: z.string().uuid().nullable(),
+  parent_team_id: z.string().uuid().nullable(),
+});

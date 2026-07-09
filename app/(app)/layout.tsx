@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { signOutAction } from "@/lib/actions/auth";
 import ThemeToggle from "@/components/ThemeToggle";
 
@@ -7,8 +8,17 @@ export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getProfile();
-  const isManager = profile.role === "manager";
+  const isAdmin = profile.role === "manager";
   const isViewer = profile.role === "viewer";
+
+  // Le voci Team/Confronto compaiono anche a chi è manager di un team
+  // nell'organigramma, indipendentemente dal ruolo globale.
+  const supabase = await createClient();
+  const { data: managed } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("manager_id", profile.id);
+  const showTeamPages = isAdmin || isViewer || (managed ?? []).length > 0;
 
   const link = "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100";
 
@@ -27,16 +37,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   <Link className={link} href="/history">Storico</Link>
                 </>
               )}
-              {(isManager || isViewer) && (
+              {showTeamPages && (
                 <>
                   <Link className={link} href="/team">Team</Link>
                   <Link className={link} href="/team/compare">Confronto</Link>
                 </>
               )}
-              {isManager && (
+              {isAdmin && (
                 <>
                   <Link className={link} href="/admin/periods">Periodi</Link>
                   <Link className={link} href="/admin/members">Membri</Link>
+                  <Link className={link} href="/admin/teams">Organigramma</Link>
                 </>
               )}
             </nav>
@@ -45,9 +56,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link href="/account" className={`text-sm ${link}`}>
               {profile.full_name || profile.email}
             </Link>
-            {isManager && (
+            {isAdmin && (
               <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white dark:bg-zinc-100 dark:text-zinc-900">
-                Manager
+                Admin
               </span>
             )}
             {isViewer && (

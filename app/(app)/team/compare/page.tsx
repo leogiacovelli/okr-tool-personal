@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireTeamViewer } from "@/lib/auth";
+import { requireTeamAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { fmtPct, isCurrentPeriod } from "@/lib/format";
 import type { OkrSet, Period } from "@/lib/types";
@@ -12,7 +12,7 @@ export default async function ComparePage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  await requireTeamViewer();
+  await requireTeamAccess();
   const { period: periodParam } = await searchParams;
   const supabase = await createClient();
 

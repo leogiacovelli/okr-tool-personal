@@ -1,27 +1,34 @@
 import Link from "next/link";
-import { requireTeamViewer } from "@/lib/auth";
+import { requireTeamAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { fmtPct, isCurrentPeriod } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
-import type { OkrSet, Period, Profile } from "@/lib/types";
+import type { OkrSet, Period, Profile, Team } from "@/lib/types";
 
-/** Dashboard manager: stato di ogni membro per il semestre selezionato. */
+/**
+ * Vista Team, raggruppata per team dell'organigramma.
+ * Chi vede cosa lo decide la RLS: qui arrivano già solo i profili visibili
+ * all'utente (il proprio sottoalbero per i manager, tutto per admin/viewer).
+ * Sul team che l'utente GESTISCE può agire; sul resto è sola lettura.
+ */
 export default async function TeamPage({
   searchParams,
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  await requireTeamViewer();
+  const { profile: me, managedTeamIds } = await requireTeamAccess();
   const { period: periodParam } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: periodsData }, { data: membersData }] = await Promise.all([
+  const [{ data: periodsData }, { data: peopleData }, { data: teamsData }] = await Promise.all([
     supabase.from("periods").select("*").order("starts_on", { ascending: false }),
-    supabase.from("profiles").select("*").eq("role", "member").order("full_name"),
+    supabase.from("profiles").select("*").neq("role", "viewer").order("full_name"),
+    supabase.from("teams").select("*").order("created_at"),
   ]);
 
   const periods = (periodsData ?? []) as Period[];
-  const members = (membersData ?? []) as Profile[];
+  const teams = (teamsData ?? []) as Team[];
+  const people = ((peopleData ?? []) as Profile[]).filter((p) => p.id !== me.id);
   const period =
     periods.find((p) => p.id === periodParam) ?? periods.find(isCurrentPeriod) ?? periods[0];
 
@@ -31,15 +38,42 @@ export default async function TeamPage({
   const sets = (setsData ?? []) as OkrSet[];
   const setFor = (memberId: string) => sets.find((s) => s.profile_id === memberId);
 
-  const toReview = sets.filter((s) => s.status === "submitted").length;
-  const toEvaluate = sets.filter((s) => s.status === "evaluation").length;
+  // Ordina i team con i padri prima dei figli (profondità nell'albero).
+  const depth = (t: Team): number => {
+    let d = 0;
+    let cur: Team | undefined = t;
+    while (cur?.parent_team_id && d < 10) {
+      cur = teams.find((x) => x.id === cur!.parent_team_id);
+      d++;
+    }
+    return d;
+  };
+  const groups = teams
+    .map((t) => ({ team: t, members: people.filter((p) => p.team_id === t.id) }))
+    .filter((g) => g.members.length > 0)
+    .sort((a, b) => depth(a.team) - depth(b.team));
+
+  const nameOf = (id: string | null) => {
+    if (!id) return null;
+    if (id === me.id) return me.full_name || me.email;
+    const p = people.find((x) => x.id === id);
+    return p ? p.full_name || p.email : null;
+  };
+
+  // Da fare: solo sui team che gestisco io.
+  const actionable = sets.filter((s) => {
+    const owner = people.find((p) => p.id === s.profile_id);
+    return owner && managedTeamIds.includes(owner.team_id);
+  });
+  const toReview = actionable.filter((s) => s.status === "submitted").length;
+  const toEvaluate = actionable.filter((s) => s.status === "evaluation").length;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Team</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Stato degli obiettivi di ogni membro per il semestre selezionato.
+          Le persone visibili a te, raggruppate per team. Puoi agire solo dove sei manager.
         </p>
       </div>
 
@@ -76,51 +110,71 @@ export default async function TeamPage({
         </div>
       )}
 
-      {members.length === 0 ? (
+      {groups.length === 0 && (
         <p className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-          Nessun membro nel team: invitali dalla pagina «Membri».
+          Nessuna persona visibile. Gli account si gestiscono da «Membri», la struttura da
+          «Organigramma».
         </p>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-          <table className="w-full bg-white text-sm dark:bg-zinc-900">
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                <th className="px-4 py-3 font-medium">Membro</th>
-                <th className="px-4 py-3 font-medium">Stato {period ? `· ${period.label}` : ""}</th>
-                <th className="px-4 py-3 font-medium">OKR Result</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((m) => {
-                const set = setFor(m.id);
-                return (
-                  <tr key={m.id} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{m.full_name || m.email}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{m.email}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={set?.status ?? "none"} />
-                    </td>
-                    <td className="px-4 py-3 font-semibold">
-                      {set?.status === "completed" ? fmtPct(set.final_score) : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/team/${m.id}${period ? `?period=${period.id}` : ""}`}
-                        className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-                      >
-                        Apri →
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
       )}
+
+      {groups.map(({ team, members }) => (
+        <section key={team.id}>
+          <div className="mb-2 flex flex-wrap items-baseline gap-2">
+            <h2 className="font-semibold">{team.name}</h2>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              manager: {nameOf(team.manager_id) ?? "—"}
+              {managedTeamIds.includes(team.id) && " (tu)"}
+            </span>
+            {!managedTeamIds.includes(team.id) && (
+              <span className="rounded-full border border-dashed border-zinc-300 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                Sola lettura
+              </span>
+            )}
+          </div>
+          <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <table className="w-full bg-white text-sm dark:bg-zinc-900">
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                  <th className="px-4 py-3 font-medium">Persona</th>
+                  <th className="px-4 py-3 font-medium">Stato {period ? `· ${period.label}` : ""}</th>
+                  <th className="px-4 py-3 font-medium">OKR Result</th>
+                  <th className="px-4 py-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((m) => {
+                  const set = setFor(m.id);
+                  return (
+                    <tr
+                      key={m.id}
+                      className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/50"
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{m.full_name || m.email}</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{m.email}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={set?.status ?? "none"} />
+                      </td>
+                      <td className="px-4 py-3 font-semibold">
+                        {set?.status === "completed" ? fmtPct(set.final_score) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          href={`/team/${m.id}${period ? `?period=${period.id}` : ""}`}
+                          className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                        >
+                          Apri →
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

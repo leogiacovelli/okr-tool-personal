@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireTeamViewer } from "@/lib/auth";
+import { requireTeamAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { fmtPct, fmtDateTime, isCurrentPeriod } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
@@ -23,10 +23,7 @@ export default async function MemberDetailPage({
   params: Promise<{ memberId: string }>;
   searchParams: Promise<{ period?: string }>;
 }) {
-  const viewer = await requireTeamViewer();
-  // L'osservatore vede tutto ma non può agire: i pannelli di review e
-  // valutazione compaiono solo al manager (e il DB rifiuterebbe comunque).
-  const canAct = viewer.role === "manager";
+  const { managedTeamIds } = await requireTeamAccess();
   const { memberId } = await params;
   const { period: periodParam } = await searchParams;
   const supabase = await createClient();
@@ -39,6 +36,10 @@ export default async function MemberDetailPage({
 
   if (!memberData) notFound();
   const member = memberData as Profile;
+  // Posso AGIRE solo se sono il manager del team di questa persona
+  // (organigramma); altrimenti la scheda è in sola lettura. Il database
+  // applica comunque la stessa regola.
+  const canAct = managedTeamIds.includes(member.team_id);
   const periods = (periodsData ?? []) as Period[];
   const sets = (setsData ?? []) as OkrSet[];
 

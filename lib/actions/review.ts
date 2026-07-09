@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireManager } from "@/lib/auth";
+import { getProfile } from "@/lib/auth";
 import { finalScoresPayload } from "@/lib/validation";
 import {
   notifyApproved,
@@ -13,9 +13,10 @@ import {
 import type { ActionResult } from "@/lib/types";
 
 /**
- * Azioni del MANAGER. Il ruolo è verificato qui (requireManager) E dal
- * database (trigger di transizione + RLS): un membro che chiamasse queste
- * azioni direttamente verrebbe comunque rifiutato dal DB.
+ * Azioni del REVIEWER (il manager del team del proprietario, secondo
+ * l'organigramma). Chi ha diritto di agire lo decide il DATABASE:
+ * RLS + trigger verificano che l'utente sia manager del team giusto —
+ * chiunque altro riceve un errore, anche chiamando le azioni direttamente.
  */
 
 async function setContext(setId: string) {
@@ -48,7 +49,7 @@ export async function reviewSetAction(
   generalComment: string,
   objectiveComments: { objective_id: string; body: string }[]
 ): Promise<ActionResult> {
-  const manager = await requireManager();
+  const manager = await getProfile();
   const supabase = await createClient();
 
   const comments = [
@@ -92,7 +93,7 @@ export async function reviewSetAction(
 
 /** Apre la fase di valutazione di fine semestre (approved → evaluation). */
 export async function startEvaluationAction(setId: string): Promise<ActionResult> {
-  await requireManager();
+  await getProfile();
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -114,7 +115,7 @@ export async function startEvaluationAction(setId: string): Promise<ActionResult
  * il trigger DB; qui lo riceviamo di ritorno per la notifica.
  */
 export async function finalizeEvaluationAction(setId: string, items: unknown): Promise<ActionResult> {
-  await requireManager();
+  await getProfile();
   const parsed = finalScoresPayload.safeParse(items);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 

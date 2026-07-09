@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireManager } from "@/lib/auth";
-import { periodInput, inviteInput } from "@/lib/validation";
+import { periodInput, inviteInput, teamInput } from "@/lib/validation";
+import type { Team } from "@/lib/types";
 
 /** Crea un nuovo semestre (solo manager; RLS lo impone anche a DB). */
 export async function createPeriodAction(formData: FormData) {
@@ -35,6 +36,95 @@ export async function createPeriodAction(formData: FormData) {
 
   revalidatePath("/", "layout");
   redirect("/admin/periods?ok=1");
+}
+
+/** Legge i campi team di un form (stringa vuota → null). */
+function teamFields(formData: FormData) {
+  const managerId = String(formData.get("manager_id") ?? "");
+  const parentId = String(formData.get("parent_team_id") ?? "");
+  return {
+    name: formData.get("name"),
+    manager_id: managerId || null,
+    parent_team_id: parentId || null,
+  };
+}
+
+/** Crea un team nell'organigramma (solo admin; RLS lo impone anche a DB). */
+export async function createTeamAction(formData: FormData) {
+  await requireManager();
+  const parsed = teamInput.safeParse(teamFields(formData));
+  if (!parsed.success) {
+    redirect(`/admin/teams?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("teams").insert(parsed.data);
+  if (error) {
+    const msg = error.code === "23505" ? "Esiste già un team con questo nome" : error.message;
+    redirect(`/admin/teams?error=${encodeURIComponent(msg)}`);
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/admin/teams?ok=1");
+}
+
+/** Aggiorna manager e posizione di un team (con controllo anti-cicli). */
+export async function updateTeamAction(formData: FormData) {
+  await requireManager();
+  const teamId = String(formData.get("team_id") ?? "");
+  const parsed = teamInput.safeParse(teamFields(formData));
+  if (!parsed.success) {
+    redirect(`/admin/teams?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+  }
+
+  const supabase = await createClient();
+
+  // Un team non può stare sotto sé stesso né sotto un proprio discendente.
+  if (parsed.data.parent_team_id) {
+    const { data: teamsData } = await supabase.from("teams").select("id, parent_team_id");
+    const teams = (teamsData ?? []) as Pick<Team, "id" | "parent_team_id">[];
+    let cursor: string | null = parsed.data.parent_team_id;
+    for (let i = 0; cursor && i < 20; i++) {
+      if (cursor === teamId) {
+        redirect(
+          `/admin/teams?error=${encodeURIComponent(
+            "Struttura non valida: un team non può stare sotto sé stesso o un suo sotto-team"
+          )}`
+        );
+      }
+      cursor = teams.find((t) => t.id === cursor)?.parent_team_id ?? null;
+    }
+  }
+
+  const { error } = await supabase.from("teams").update(parsed.data).eq("id", teamId);
+  if (error) {
+    redirect(`/admin/teams?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/admin/teams?ok=1");
+}
+
+/** Sposta una persona in un altro team (cambia anche chi la approva). */
+export async function movePersonAction(formData: FormData) {
+  await requireManager();
+  const profileId = String(formData.get("profile_id") ?? "");
+  const teamId = String(formData.get("team_id") ?? "");
+  if (!profileId || !teamId) {
+    redirect(`/admin/members?error=${encodeURIComponent("Selezione non valida")}`);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ team_id: teamId })
+    .eq("id", profileId);
+  if (error) {
+    redirect(`/admin/members?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/admin/members?ok=team");
 }
 
 /**

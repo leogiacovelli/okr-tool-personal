@@ -22,7 +22,11 @@ export async function getProfile(): Promise<Profile> {
   return profile as Profile;
 }
 
-/** Come getProfile, ma richiede il ruolo manager (azioni e pagine admin). */
+/**
+ * Richiede il ruolo ADMIN (valore storico 'manager' su profiles): amministra
+ * periodi, account, ruoli e organigramma. NON dà diritti di approvazione:
+ * quelli derivano dall'essere manager di un team (vedi requireTeamAccess).
+ */
 export async function requireManager(): Promise<Profile> {
   const profile = await getProfile();
   if (profile.role !== "manager") redirect("/dashboard");
@@ -30,11 +34,19 @@ export async function requireManager(): Promise<Profile> {
 }
 
 /**
- * Manager o osservatore (viewer): per le viste di team in lettura.
- * Le azioni restano riservate al manager (requireManager + trigger DB).
+ * Accesso alle pagine di team: admin, osservatore globale, o manager di
+ * almeno un team. Ritorna anche gli id dei team gestiti, da cui le pagine
+ * derivano dove l'utente può AGIRE (il resto è sola lettura via RLS).
  */
-export async function requireTeamViewer(): Promise<Profile> {
+export async function requireTeamAccess(): Promise<{
+  profile: Profile;
+  managedTeamIds: string[];
+}> {
   const profile = await getProfile();
-  if (profile.role !== "manager" && profile.role !== "viewer") redirect("/dashboard");
-  return profile;
+  const supabase = await createClient();
+  const { data } = await supabase.from("teams").select("id").eq("manager_id", profile.id);
+  const managedTeamIds = ((data ?? []) as { id: string }[]).map((t) => t.id);
+
+  if (profile.role === "member" && managedTeamIds.length === 0) redirect("/dashboard");
+  return { profile, managedTeamIds };
 }

@@ -1,8 +1,8 @@
 import { requireManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { inviteMemberAction, updateRoleAction } from "@/lib/actions/admin";
+import { inviteMemberAction, updateRoleAction, movePersonAction } from "@/lib/actions/admin";
 import { fmtDate } from "@/lib/format";
-import type { Profile } from "@/lib/types";
+import type { Profile, Team } from "@/lib/types";
 
 const input =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:placeholder:text-zinc-600";
@@ -18,8 +18,12 @@ export default async function MembersPage({
   const { error, ok } = await searchParams;
   const supabase = await createClient();
 
-  const { data } = await supabase.from("profiles").select("*").order("full_name");
+  const [{ data }, { data: teamsData }] = await Promise.all([
+    supabase.from("profiles").select("*").order("full_name"),
+    supabase.from("teams").select("*").order("created_at"),
+  ]);
   const profiles = (data ?? []) as Profile[];
+  const teams = (teamsData ?? []) as Team[];
 
   return (
     <div className="space-y-6">
@@ -37,7 +41,7 @@ export default async function MembersPage({
       )}
       {ok && (
         <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-          {ok === "role" ? "Ruolo aggiornato." : "Invito inviato."}
+          {ok === "role" ? "Ruolo aggiornato." : ok === "team" ? "Team aggiornato." : "Invito inviato."}
         </p>
       )}
 
@@ -66,6 +70,7 @@ export default async function MembersPage({
             <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Team</th>
               <th className="px-4 py-3 font-medium">Ruolo</th>
               <th className="px-4 py-3 font-medium">Creato</th>
             </tr>
@@ -76,10 +81,29 @@ export default async function MembersPage({
                 <td className="px-4 py-3 font-medium">{p.full_name || "—"}</td>
                 <td className="px-4 py-3">{p.email}</td>
                 <td className="px-4 py-3">
+                  <form action={movePersonAction} className="flex items-center gap-2">
+                    <input type="hidden" name="profile_id" value={p.id} />
+                    <select
+                      name="team_id"
+                      defaultValue={p.team_id}
+                      className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                    >
+                      {teams.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">
+                      Salva
+                    </button>
+                  </form>
+                </td>
+                <td className="px-4 py-3">
                   {p.id === me.id ? (
                     // Il proprio ruolo non si cambia da qui (protezione anti-lockout)
                     <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white dark:bg-zinc-100 dark:text-zinc-900">
-                      Manager (tu)
+                      Admin (tu)
                     </span>
                   ) : (
                     <form action={updateRoleAction} className="flex items-center gap-2">
@@ -91,7 +115,7 @@ export default async function MembersPage({
                       >
                         <option value="member">Membro</option>
                         <option value="viewer">Osservatore</option>
-                        <option value="manager">Manager</option>
+                        <option value="manager">Admin</option>
                       </select>
                       <button className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">
                         Salva
