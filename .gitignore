@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# Variabili sensibili: mai committate
+.env
+.env.local
+.env*.local
+.vercel
+.env*

@@ -1,0 +1,110 @@
+import { requireManager } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { inviteMemberAction, updateRoleAction } from "@/lib/actions/admin";
+import { fmtDate } from "@/lib/format";
+import type { Profile } from "@/lib/types";
+
+const input =
+  "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:placeholder:text-zinc-600";
+const label = "mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400";
+
+/** Elenco membri + invito via email (solo manager). */
+export default async function MembersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; ok?: string }>;
+}) {
+  const me = await requireManager();
+  const { error, ok } = await searchParams;
+  const supabase = await createClient();
+
+  const { data } = await supabase.from("profiles").select("*").order("full_name");
+  const profiles = (data ?? []) as Profile[];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Membri del team</h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          Invita un nuovo membro: riceverà un'email con il link per attivare l'account.
+        </p>
+      </div>
+
+      {error && (
+        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+          {error}
+        </p>
+      )}
+      {ok && (
+        <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+          {ok === "role" ? "Ruolo aggiornato." : "Invito inviato."}
+        </p>
+      )}
+
+      <form
+        action={inviteMemberAction}
+        className="grid gap-4 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900 sm:grid-cols-3"
+      >
+        <div>
+          <label className={label}>Nome e cognome</label>
+          <input className={input} name="full_name" required placeholder="es. Giulia Rossi" />
+        </div>
+        <div>
+          <label className={label}>Email</label>
+          <input className={input} name="email" type="email" required placeholder="email@azienda.it" />
+        </div>
+        <div className="flex items-end">
+          <button className="w-full rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white">
+            Invita membro
+          </button>
+        </div>
+      </form>
+
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+        <table className="w-full bg-white text-sm dark:bg-zinc-900">
+          <thead>
+            <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+              <th className="px-4 py-3 font-medium">Nome</th>
+              <th className="px-4 py-3 font-medium">Email</th>
+              <th className="px-4 py-3 font-medium">Ruolo</th>
+              <th className="px-4 py-3 font-medium">Creato</th>
+            </tr>
+          </thead>
+          <tbody>
+            {profiles.map((p) => (
+              <tr key={p.id} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/50">
+                <td className="px-4 py-3 font-medium">{p.full_name || "—"}</td>
+                <td className="px-4 py-3">{p.email}</td>
+                <td className="px-4 py-3">
+                  {p.id === me.id ? (
+                    // Il proprio ruolo non si cambia da qui (protezione anti-lockout)
+                    <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white dark:bg-zinc-100 dark:text-zinc-900">
+                      Manager (tu)
+                    </span>
+                  ) : (
+                    <form action={updateRoleAction} className="flex items-center gap-2">
+                      <input type="hidden" name="profile_id" value={p.id} />
+                      <select
+                        name="role"
+                        defaultValue={p.role}
+                        className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        <option value="member">Membro</option>
+                        <option value="viewer">Osservatore</option>
+                        <option value="manager">Manager</option>
+                      </select>
+                      <button className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">
+                        Salva
+                      </button>
+                    </form>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-zinc-500 dark:text-zinc-400">{fmtDate(p.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

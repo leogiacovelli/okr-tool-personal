@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* Il tema è pilotato da data-theme sull'elemento html (toggle utente),
+   inizializzato da localStorage o dalla preferenza di sistema. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-zinc-50 text-zinc-900;
+}
+
+[data-theme="dark"] body {
+  @apply bg-zinc-950 text-zinc-100;
+}
