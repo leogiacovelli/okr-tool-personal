@@ -98,7 +98,8 @@ export async function updateTeamAction(formData: FormData) {
 
   const { error } = await supabase.from("teams").update(parsed.data).eq("id", teamId);
   if (error) {
-    redirect(`/admin/teams?error=${encodeURIComponent(error.message)}`);
+    const msg = error.code === "23505" ? "Esiste già un team con questo nome" : error.message;
+    redirect(`/admin/teams?error=${encodeURIComponent(msg)}`);
   }
 
   revalidatePath("/", "layout");

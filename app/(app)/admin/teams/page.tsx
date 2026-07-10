@@ -104,7 +104,6 @@ export default async function TeamsPage({
             className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
           >
             <input type="hidden" name="team_id" value={t.id} />
-            <input type="hidden" name="name" value={t.name} />
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h2 className="font-semibold">{t.name}</h2>
@@ -113,6 +112,10 @@ export default async function TeamsPage({
                 </p>
               </div>
               <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label className={label}>Nome</label>
+                  <input className={`${select} w-44`} name="name" defaultValue={t.name} required />
+                </div>
                 <div>
                   <label className={label}>Manager</label>
                   <select className={select} name="manager_id" defaultValue={t.manager_id ?? ""}>
