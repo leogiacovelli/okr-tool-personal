@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 const input =
@@ -18,6 +19,7 @@ export default function AccountForm({
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [pending, setPending] = useState(false);
+  const router = useRouter();
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +54,7 @@ export default function AccountForm({
     setPassword("");
     setMsg({ kind: "ok", text: "Profilo aggiornato." });
     setPending(false);
+    router.refresh(); // aggiorna anche il nome nella testata
   }
 
   return (

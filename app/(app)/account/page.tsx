@@ -9,7 +9,12 @@ export default async function AccountPage() {
       <div>
         <h1 className="text-2xl font-semibold">Il tuo account</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {profile.email} · ruolo: {profile.role === "manager" ? "Manager" : "Membro del team"}
+          {profile.email} · ruolo:{" "}
+          {profile.role === "manager"
+            ? "Admin"
+            : profile.role === "viewer"
+              ? "Osservatore"
+              : "Membro del team"}
         </p>
       </div>
       <AccountForm userId={profile.id} initialName={profile.full_name} />
