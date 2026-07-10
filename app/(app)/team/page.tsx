@@ -22,13 +22,16 @@ export default async function TeamPage({
 
   const [{ data: periodsData }, { data: peopleData }, { data: teamsData }] = await Promise.all([
     supabase.from("periods").select("*").order("starts_on", { ascending: false }),
-    supabase.from("profiles").select("*").neq("role", "viewer").order("full_name"),
+    supabase.from("profiles").select("*").order("full_name"),
     supabase.from("teams").select("*").order("created_at"),
   ]);
 
   const periods = (periodsData ?? []) as Period[];
   const teams = (teamsData ?? []) as Team[];
-  const people = ((peopleData ?? []) as Profile[]).filter((p) => p.id !== me.id);
+  // Tutti i profili visibili (per risolvere i nomi dei manager, anche
+  // osservatori); negli elenchi compaiono solo self esclusi e non-viewer.
+  const allPeople = (peopleData ?? []) as Profile[];
+  const people = allPeople.filter((p) => p.id !== me.id && p.role !== "viewer");
   const period =
     periods.find((p) => p.id === periodParam) ?? periods.find(isCurrentPeriod) ?? periods[0];
 
@@ -56,7 +59,7 @@ export default async function TeamPage({
   const nameOf = (id: string | null) => {
     if (!id) return null;
     if (id === me.id) return me.full_name || me.email;
-    const p = people.find((x) => x.id === id);
+    const p = allPeople.find((x) => x.id === id);
     return p ? p.full_name || p.email : null;
   };
 
