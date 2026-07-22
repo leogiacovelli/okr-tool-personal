@@ -91,6 +91,38 @@ export async function reviewSetAction(
   return { ok: true };
 }
 
+/**
+ * Riapre un set già approvato riportandolo in "Modifiche richieste"
+ * (approved → changes_requested). Serve quando gli obiettivi, già approvati e
+ * presentati, vanno corretti più avanti (eliminarne uno, ribilanciare i pesi):
+ * il proprietario torna a poterli modificare e dovrà reinviare per una nuova
+ * approvazione. Il diritto di agire lo verifica comunque il trigger DB.
+ */
+export async function reopenSetAction(setId: string, comment: string): Promise<ActionResult> {
+  const manager = await getProfile();
+  const supabase = await createClient();
+
+  const body = comment.trim();
+  if (body) {
+    const { error } = await supabase
+      .from("review_comments")
+      .insert({ set_id: setId, objective_id: null, author_id: manager.id, body });
+    if (error) return { error: error.message };
+  }
+
+  const { error } = await supabase
+    .from("okr_sets")
+    .update({ status: "changes_requested" })
+    .eq("id", setId);
+  if (error) return { error: error.message };
+
+  const ctx = await setContext(setId);
+  if (ctx?.memberEmail) await notifyChangesRequested(ctx.memberEmail, ctx);
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 /** Apre la fase di valutazione di fine semestre (approved → evaluation). */
 export async function startEvaluationAction(setId: string): Promise<ActionResult> {
   await getProfile();

@@ -8,6 +8,7 @@ import ObjectivesReadOnly from "@/components/ObjectivesReadOnly";
 import ReviewPanel from "@/components/ReviewPanel";
 import FinalizeEvaluationForm from "@/components/FinalizeEvaluationForm";
 import StartEvaluationButton from "@/components/StartEvaluationButton";
+import ReopenButton from "@/components/ReopenButton";
 import CommentsList from "@/components/CommentsList";
 import type { Objective, OkrSet, Period, Profile, ReviewComment } from "@/lib/types";
 
@@ -152,7 +153,10 @@ export default async function MemberDetailPage({
                   Obiettivi approvati. A fine semestre, apri la fase di valutazione: il membro
                   riceverà una notifica per proporre i risultati.
                 </p>
-                <StartEvaluationButton setId={set.id} />
+                <div className="flex flex-wrap items-start gap-3">
+                  <StartEvaluationButton setId={set.id} />
+                  <ReopenButton setId={set.id} />
+                </div>
               </div>
             ) : (
               <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
