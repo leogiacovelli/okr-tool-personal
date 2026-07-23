@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 const input =
@@ -44,7 +45,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        shouldCreateUser: false, // gli account li crea il manager
+        shouldCreateUser: false, // chi non ha un account passa da /signup
       },
     });
     setPending(false);
@@ -58,7 +59,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
   return (
     <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
       <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-        OKR · Team Marketing
+        OKR
       </p>
       <h1 className="mb-6 mt-1 text-xl font-semibold">Accedi</h1>
 
@@ -139,7 +140,11 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
       {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       <p className="mt-6 text-xs text-zinc-400">
-        Gli account vengono creati dal manager: non è prevista la registrazione autonoma.
+        Primo accesso?{" "}
+        <Link href="/signup" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
+          Crea il tuo account
+        </Link>{" "}
+        con l&apos;email aziendale.
       </p>
     </div>
   );

@@ -97,3 +97,20 @@ export function passwordError(password: string): string | null {
   }
   return null;
 }
+
+/**
+ * Domini di posta aziendali ammessi all'auto-registrazione. DEVONO restare
+ * allineati alla funzione is_allowed_signup_domain del database (migrazione
+ * 00007): qui il controllo serve solo a dare un errore immediato e leggibile,
+ * il filtro vero è nel trigger handle_new_user.
+ */
+export const ALLOWED_EMAIL_DOMAINS = [
+  "tuaazienda.com",
+  "secondobrand.com",
+  "terzobrand.com",
+] as const;
+
+export function isAllowedEmailDomain(email: string): boolean {
+  const domain = email.trim().toLowerCase().split("@")[1];
+  return ALLOWED_EMAIL_DOMAINS.some((d) => d === domain);
+}
