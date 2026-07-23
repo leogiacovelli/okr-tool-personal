@@ -70,19 +70,27 @@ export const teamInput = z.object({
 });
 
 /**
- * Requisiti password, allineati alle policy impostate su Supabase Auth
- * (minimo 12 caratteri + lettere, numeri e simboli; Supabase rifiuta inoltre
- * le password compromesse note). Qui servono a dare un messaggio d'errore
- * chiaro PRIMA della chiamata: la regola vera resta quella del server.
+ * Requisiti password, allineati alle policy impostate su Supabase Auth:
+ * minimo 10 caratteri con maiuscole, minuscole, numeri e simboli. Supabase
+ * rifiuta inoltre le password già comparse in violazioni note (leaked password
+ * protection) — quella è la protezione che pesa di più, ma non è replicabile
+ * qui lato client. Questi controlli danno un messaggio d'errore chiaro PRIMA
+ * della chiamata: la regola vera resta quella applicata dal server.
  */
-export const PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_MIN_LENGTH = 10;
 
 export function passwordError(password: string): string | null {
   if (password.length < PASSWORD_MIN_LENGTH) {
     return `La password deve avere almeno ${PASSWORD_MIN_LENGTH} caratteri.`;
   }
-  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-    return "La password deve contenere lettere e numeri.";
+  if (!/[a-z]/.test(password)) {
+    return "La password deve contenere almeno una lettera minuscola.";
+  }
+  if (!/[A-Z]/.test(password)) {
+    return "La password deve contenere almeno una lettera maiuscola.";
+  }
+  if (!/[0-9]/.test(password)) {
+    return "La password deve contenere almeno un numero.";
   }
   if (!/[^a-zA-Z0-9]/.test(password)) {
     return "La password deve contenere almeno un simbolo (es. ! ? # @).";

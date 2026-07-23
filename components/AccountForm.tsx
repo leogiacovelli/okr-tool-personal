@@ -76,7 +76,7 @@ export default function AccountForm({
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={`Minimo ${PASSWORD_MIN_LENGTH} caratteri, con numeri e simboli`}
+          placeholder={`Min. ${PASSWORD_MIN_LENGTH} caratteri: maiuscole, minuscole, numeri e simboli`}
         />
       </div>
       <div className="flex items-center gap-3">
