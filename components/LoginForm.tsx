@@ -59,7 +59,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
   return (
     <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
       <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-        OKR
+        OKR · La Tua Azienda
       </p>
       <h1 className="mb-6 mt-1 text-xl font-semibold">Accedi</h1>
 

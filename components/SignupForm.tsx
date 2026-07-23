@@ -82,7 +82,9 @@ export default function SignupForm() {
 
   return (
     <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
-      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">OKR</p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+        OKR · La Tua Azienda
+      </p>
       <h1 className="mb-1 mt-1 text-xl font-semibold">Crea il tuo account</h1>
       <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
         Registrati con il tuo indirizzo di posta aziendale.

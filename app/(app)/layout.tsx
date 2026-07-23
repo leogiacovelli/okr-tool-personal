@@ -28,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="mx-auto flex h-auto max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <Link href="/" className="font-semibold">
-              OKR <span className="font-normal text-zinc-400">Marketing</span>
+              OKR <span className="font-normal text-zinc-400">La Tua Azienda</span>
             </Link>
             <nav className="flex flex-wrap items-center gap-4 text-sm">
               {!isViewer && (

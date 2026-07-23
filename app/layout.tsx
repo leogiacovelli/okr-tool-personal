@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OKR · Team Marketing",
+  title: "OKR · La Tua Azienda",
   description: "Gestione obiettivi semestrali del team Marketing",
   robots: { index: false, follow: false },
 };
