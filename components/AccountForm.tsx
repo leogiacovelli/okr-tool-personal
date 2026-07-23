@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PASSWORD_MIN_LENGTH, passwordError } from "@/lib/validation";
 
 const input =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:placeholder:text-zinc-600";
@@ -38,8 +39,9 @@ export default function AccountForm({
     }
 
     if (password) {
-      if (password.length < 8) {
-        setMsg({ kind: "err", text: "La password deve avere almeno 8 caratteri." });
+      const pwProblem = passwordError(password);
+      if (pwProblem) {
+        setMsg({ kind: "err", text: pwProblem });
         setPending(false);
         return;
       }
@@ -74,7 +76,7 @@ export default function AccountForm({
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Minimo 8 caratteri"
+          placeholder={`Minimo ${PASSWORD_MIN_LENGTH} caratteri, con numeri e simboli`}
         />
       </div>
       <div className="flex items-center gap-3">

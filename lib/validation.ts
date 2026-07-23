@@ -68,3 +68,24 @@ export const teamInput = z.object({
   manager_id: z.string().uuid().nullable(),
   parent_team_id: z.string().uuid().nullable(),
 });
+
+/**
+ * Requisiti password, allineati alle policy impostate su Supabase Auth
+ * (minimo 12 caratteri + lettere, numeri e simboli; Supabase rifiuta inoltre
+ * le password compromesse note). Qui servono a dare un messaggio d'errore
+ * chiaro PRIMA della chiamata: la regola vera resta quella del server.
+ */
+export const PASSWORD_MIN_LENGTH = 12;
+
+export function passwordError(password: string): string | null {
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return `La password deve avere almeno ${PASSWORD_MIN_LENGTH} caratteri.`;
+  }
+  if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return "La password deve contenere lettere e numeri.";
+  }
+  if (!/[^a-zA-Z0-9]/.test(password)) {
+    return "La password deve contenere almeno un simbolo (es. ! ? # @).";
+  }
+  return null;
+}
