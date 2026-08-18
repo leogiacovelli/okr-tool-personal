@@ -13,9 +13,9 @@ import CommentsList from "@/components/CommentsList";
 import type { Objective, OkrSet, Period, Profile, ReviewComment } from "@/lib/types";
 
 /**
- * Vista MANAGER del singolo membro: obiettivi del semestre selezionato,
- * azioni di review (approva / richiedi modifiche), apertura e conferma
- * della valutazione finale, storico degli altri semestri.
+ * MANAGER view of a single member: objectives for the selected semester,
+ * review actions (approve / request changes), opening and confirming
+ * the final evaluation, history of other semesters.
  */
 export default async function MemberDetailPage({
   params,
@@ -37,9 +37,9 @@ export default async function MemberDetailPage({
 
   if (!memberData) notFound();
   const member = memberData as Profile;
-  // Posso AGIRE solo se sono il manager del team di questa persona
-  // (organigramma); altrimenti la scheda è in sola lettura. Il database
-  // applica comunque la stessa regola.
+  // I can ACT only if I'm the manager of this person's team
+  // (org chart); otherwise the page is read-only. The database
+  // enforces the same rule regardless.
   const canAct = managedTeamIds.includes(member.team_id);
   const periods = (periodsData ?? []) as Period[];
   const sets = (setsData ?? []) as OkrSet[];
@@ -104,13 +104,13 @@ export default async function MemberDetailPage({
 
       {!period && (
         <p className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-          Nessun semestre configurato.
+          No semester configured.
         </p>
       )}
 
       {period && !set && (
         <p className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-          {member.full_name || member.email} non ha ancora iniziato gli obiettivi per {period.label}.
+          {member.full_name || member.email} hasn't started their objectives for {period.label} yet.
         </p>
       )}
 
@@ -119,7 +119,7 @@ export default async function MemberDetailPage({
           {set.status === "completed" && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 dark:border-emerald-900 dark:bg-emerald-950/30">
               <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                OKR Result · {period?.label} — confermato il {fmtDateTime(set.completed_at)}
+                OKR Result · {period?.label} — confirmed on {fmtDateTime(set.completed_at)}
               </p>
               <p className="text-3xl font-bold">{fmtPct(set.final_score)}</p>
             </div>
@@ -127,13 +127,13 @@ export default async function MemberDetailPage({
 
           {set.status === "draft" && (
             <p className="rounded-lg bg-zinc-100 p-3 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              Bozza in lavorazione: il membro non ha ancora inviato gli obiettivi.
+              Draft in progress: the member hasn't submitted their objectives yet.
             </p>
           )}
 
           {set.status === "changes_requested" && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-              Modifiche richieste: in attesa che il membro aggiorni e reinvii gli obiettivi.
+              Changes requested: waiting for the member to update and resubmit their objectives.
             </p>
           )}
 
@@ -142,7 +142,7 @@ export default async function MemberDetailPage({
               <ReviewPanel setId={set.id} objectives={objectives} />
             ) : (
               <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                Obiettivi inviati: in attesa della review del manager.
+                Objectives submitted: awaiting the manager's review.
               </p>
             ))}
 
@@ -150,8 +150,8 @@ export default async function MemberDetailPage({
             (canAct ? (
               <div className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
                 <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-300">
-                  Obiettivi approvati. A fine semestre, apri la fase di valutazione: il membro
-                  riceverà una notifica per proporre i risultati.
+                  Objectives approved. At the end of the semester, open the evaluation phase: the
+                  member will get a notification to propose their results.
                 </p>
                 <div className="flex flex-wrap items-start gap-3">
                   <StartEvaluationButton setId={set.id} />
@@ -160,7 +160,7 @@ export default async function MemberDetailPage({
               </div>
             ) : (
               <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                Obiettivi approvati e confermati per il semestre.
+                Objectives approved and confirmed for the semester.
               </p>
             ))}
 
@@ -173,7 +173,7 @@ export default async function MemberDetailPage({
               />
             ) : (
               <p className="rounded-lg bg-violet-50 p-3 text-sm text-violet-800 dark:bg-violet-950 dark:text-violet-300">
-                Valutazione di fine semestre in corso: il manager sta confermando i risultati.
+                End-of-semester evaluation in progress: the manager is confirming the results.
               </p>
             ))}
 
@@ -191,7 +191,7 @@ export default async function MemberDetailPage({
 
       {sets.length > 0 && (
         <div className="rounded-xl border border-zinc-200 bg-white p-5 text-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <h3 className="mb-3 font-semibold">Storico semestri</h3>
+          <h3 className="mb-3 font-semibold">Semester history</h3>
           <ul className="space-y-2">
             {sets
               .slice()

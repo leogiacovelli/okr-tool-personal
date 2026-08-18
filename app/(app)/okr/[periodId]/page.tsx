@@ -12,12 +12,12 @@ import CommentsList from "@/components/CommentsList";
 import type { Objective, OkrSet, Period, ReviewComment } from "@/lib/types";
 
 /**
- * Vista MEMBRO del proprio set OKR per un semestre.
- * Il contenuto cambia con lo stato del flusso:
+ * MEMBER view of their own OKR set for a semester.
+ * The content changes based on the flow status:
  *   draft / changes_requested → editor
- *   submitted / approved      → sola lettura
- *   evaluation                → proposta risultati
- *   completed                 → sola lettura con punteggi e OKR Result
+ *   submitted / approved      → read-only
+ *   evaluation                → propose results
+ *   completed                 → read-only with scores and OKR Result
  */
 export default async function OkrPeriodPage({
   params,
@@ -66,7 +66,7 @@ export default async function OkrPeriodPage({
             href="/dashboard"
             className="text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
           >
-            ← I miei OKR
+            ← My OKRs
           </Link>
           <h1 className="text-2xl font-semibold">
             {period.label}
@@ -81,12 +81,12 @@ export default async function OkrPeriodPage({
       {!set && (
         <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
           <p className="mb-4 text-sm text-zinc-500">
-            Non hai ancora iniziato gli obiettivi per questo semestre.
+            You haven't started your objectives for this semester yet.
           </p>
           <form action={createSetAction} className="inline">
             <input type="hidden" name="period_id" value={period.id} />
             <button className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white">
-              Inizia bozza
+              Start draft
             </button>
           </form>
         </div>
@@ -97,7 +97,7 @@ export default async function OkrPeriodPage({
           {set.status === "completed" && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 dark:border-emerald-900 dark:bg-emerald-950/30">
               <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                OKR Result del semestre (media pesata delle % confermate)
+                OKR Result for the semester (weighted average of the confirmed %)
               </p>
               <p className="text-3xl font-bold">{fmtPct(set.final_score)}</p>
             </div>
@@ -114,7 +114,7 @@ export default async function OkrPeriodPage({
           {set.status === "submitted" && (
             <>
               <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                Obiettivi inviati al manager: in attesa di review. Non sono più modificabili.
+                Objectives sent to your manager: awaiting review. They can no longer be edited.
               </p>
               <ObjectivesReadOnly objectives={objectives} />
             </>
@@ -123,8 +123,8 @@ export default async function OkrPeriodPage({
           {set.status === "approved" && (
             <>
               <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                Obiettivi approvati e confermati per il semestre. A fine semestre il manager aprirà
-                la fase di valutazione.
+                Objectives approved and confirmed for the semester. At the end of the semester your
+                manager will open the evaluation phase.
               </p>
               <ObjectivesReadOnly objectives={objectives} />
             </>

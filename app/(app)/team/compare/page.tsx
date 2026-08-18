@@ -6,7 +6,7 @@ import type { OkrSet, Period } from "@/lib/types";
 
 type SetWithOwner = OkrSet & { owner: { full_name: string; email: string } | null };
 
-/** Vista aggregata: confronto OKR Result tra membri per semestre. */
+/** Aggregate view: compare OKR Results across members for a semester. */
 export default async function ComparePage({
   searchParams,
 }: {
@@ -43,9 +43,9 @@ export default async function ComparePage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Confronto team</h1>
+        <h1 className="text-2xl font-semibold">Team comparison</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          OKR Result dei semestri chiusi, a confronto tra i membri.
+          OKR Results for closed semesters, compared across members.
         </p>
       </div>
 
@@ -69,14 +69,14 @@ export default async function ComparePage({
 
       {sets.length === 0 ? (
         <p className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-          Nessun semestre chiuso per {period?.label ?? "questo periodo"}: il confronto appare dopo
-          la conferma delle valutazioni finali.
+          No closed semesters for {period?.label ?? "this period"}: the comparison appears after
+          final evaluations are confirmed.
         </p>
       ) : (
         <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
           {avg !== null && (
             <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
-              Media team {period?.label}:{" "}
+              Team average {period?.label}:{" "}
               <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                 {fmtPct(Math.round(avg * 100) / 100)}
               </span>
@@ -93,7 +93,7 @@ export default async function ComparePage({
                       href={`/team/${s.profile_id}?period=${s.period_id}`}
                       className="font-medium hover:underline"
                     >
-                      {s.owner?.full_name || s.owner?.email || "Membro"}
+                      {s.owner?.full_name || s.owner?.email || "Member"}
                     </Link>
                     <span className="font-semibold">{fmtPct(s.final_score)}</span>
                   </div>
@@ -107,7 +107,7 @@ export default async function ComparePage({
               );
             })}
           </div>
-          <p className="mt-4 text-xs text-zinc-400">Scala 0–120% (120% = massimo raggiungibile)</p>
+          <p className="mt-4 text-xs text-zinc-400">Scale 0–120% (120% = maximum achievable)</p>
         </div>
       )}
     </div>

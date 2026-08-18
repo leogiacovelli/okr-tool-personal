@@ -8,8 +8,8 @@ const input =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:placeholder:text-zinc-600";
 
 const ERRORS: Record<string, string> = {
-  auth: "Link di accesso non valido o scaduto. Riprova.",
-  profile: "Profilo non trovato. Contatta il manager.",
+  auth: "Invalid or expired sign-in link. Please try again.",
+  profile: "Profile not found. Contact your manager.",
 };
 
 export default function LoginForm({ initialError }: { initialError?: string }) {
@@ -29,7 +29,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setError("Credenziali non valide.");
+      setError("Invalid credentials.");
       setPending(false);
       return;
     }
@@ -45,7 +45,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        shouldCreateUser: false, // chi non ha un account passa da /signup
+        shouldCreateUser: false, // anyone without an account goes through /signup
       },
     });
     setPending(false);
@@ -59,9 +59,9 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
   return (
     <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900">
       <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
-        OKR · La Tua Azienda
+        OKR · Your Company
       </p>
-      <h1 className="mb-6 mt-1 text-xl font-semibold">Accedi</h1>
+      <h1 className="mb-6 mt-1 text-xl font-semibold">Sign in</h1>
 
       <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1 text-sm dark:bg-zinc-800">
         {(["password", "magic"] as const).map((m) => (
@@ -91,7 +91,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
             type="email"
             required
             autoComplete="email"
-            placeholder="email@azienda.it"
+            placeholder="email@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -109,12 +109,12 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
             disabled={pending}
             className="w-full rounded-lg bg-zinc-900 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
           >
-            {pending ? "Accesso…" : "Accedi"}
+            {pending ? "Signing in…" : "Sign in"}
           </button>
         </form>
       ) : sent ? (
         <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-          Controlla la tua email: ti abbiamo inviato un link di accesso.
+          Check your email: we've sent you a sign-in link.
         </p>
       ) : (
         <form onSubmit={signInMagic} className="space-y-3">
@@ -123,7 +123,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
             type="email"
             required
             autoComplete="email"
-            placeholder="email@azienda.it"
+            placeholder="email@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -132,7 +132,7 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
             disabled={pending}
             className="w-full rounded-lg bg-zinc-900 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
           >
-            {pending ? "Invio…" : "Inviami il link di accesso"}
+            {pending ? "Sending…" : "Send me the sign-in link"}
           </button>
         </form>
       )}
@@ -140,11 +140,11 @@ export default function LoginForm({ initialError }: { initialError?: string }) {
       {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       <p className="mt-6 text-xs text-zinc-400">
-        Primo accesso?{" "}
+        First time here?{" "}
         <Link href="/signup" className="underline hover:text-zinc-600 dark:hover:text-zinc-300">
-          Crea il tuo account
+          Create your account
         </Link>{" "}
-        con l&apos;email aziendale.
+        with your company email.
       </p>
     </div>
   );

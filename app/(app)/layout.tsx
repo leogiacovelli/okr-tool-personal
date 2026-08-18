@@ -11,8 +11,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const isAdmin = profile.role === "manager";
   const isViewer = profile.role === "viewer";
 
-  // Le voci Team/Confronto compaiono anche a chi è manager di un team
-  // nell'organigramma, indipendentemente dal ruolo globale.
+  // The Team/Compare links also show up for anyone who is a team manager
+  // in the org chart, regardless of their global role.
   const supabase = await createClient();
   const { data: managed } = await supabase
     .from("teams")
@@ -28,26 +28,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="mx-auto flex h-auto max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <Link href="/" className="font-semibold">
-              OKR <span className="font-normal text-zinc-400">La Tua Azienda</span>
+              OKR <span className="font-normal text-zinc-400">Your Company</span>
             </Link>
             <nav className="flex flex-wrap items-center gap-4 text-sm">
               {!isViewer && (
                 <>
-                  <Link className={link} href="/dashboard">I miei OKR</Link>
-                  <Link className={link} href="/history">Storico</Link>
+                  <Link className={link} href="/dashboard">My OKRs</Link>
+                  <Link className={link} href="/history">History</Link>
                 </>
               )}
               {showTeamPages && (
                 <>
                   <Link className={link} href="/team">Team</Link>
-                  <Link className={link} href="/team/compare">Confronto</Link>
+                  <Link className={link} href="/team/compare">Compare</Link>
                 </>
               )}
               {isAdmin && (
                 <>
-                  <Link className={link} href="/admin/periods">Periodi</Link>
-                  <Link className={link} href="/admin/members">Membri</Link>
-                  <Link className={link} href="/admin/teams">Organigramma</Link>
+                  <Link className={link} href="/admin/periods">Periods</Link>
+                  <Link className={link} href="/admin/members">Members</Link>
+                  <Link className={link} href="/admin/teams">Org Chart</Link>
                 </>
               )}
             </nav>
@@ -63,12 +63,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             )}
             {isViewer && (
               <span className="rounded border border-zinc-400 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:border-zinc-600 dark:text-zinc-400">
-                Osservatore
+                Viewer
               </span>
             )}
             <ThemeToggle />
             <form action={signOutAction}>
-              <button className={`text-sm ${link}`}>Esci</button>
+              <button className={`text-sm ${link}`}>Sign out</button>
             </form>
           </div>
         </div>

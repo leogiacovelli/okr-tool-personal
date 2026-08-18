@@ -78,9 +78,9 @@ export default function ObjectivesEditor({
           setMsg({ kind: "err", text: sub.error });
           return;
         }
-        setMsg({ kind: "ok", text: "Obiettivi inviati al manager per la review." });
+        setMsg({ kind: "ok", text: "Objectives sent to your manager for review." });
       } else {
-        setMsg({ kind: "ok", text: "Bozza salvata." });
+        setMsg({ kind: "ok", text: "Draft saved." });
       }
       router.refresh();
     });
@@ -94,14 +94,14 @@ export default function ObjectivesEditor({
           className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
         >
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-sm font-semibold text-zinc-400">Obiettivo {i + 1}</span>
+            <span className="text-sm font-semibold text-zinc-400">Objective {i + 1}</span>
             {rows.length > 1 && (
               <button
                 type="button"
                 onClick={() => setRows((prev) => prev.filter((_, idx) => idx !== i))}
                 className="text-xs text-red-600 hover:underline dark:text-red-400"
               >
-                Rimuovi
+                Remove
               </button>
             )}
           </div>
@@ -113,7 +113,7 @@ export default function ObjectivesEditor({
                 className={input}
                 value={r.objective}
                 onChange={(e) => update(i, { objective: e.target.value })}
-                placeholder="es. [Stellantis B2C] Growth - Quality target"
+                placeholder="e.g. [Product Line] Growth - Quality target"
               />
             </div>
             <div>
@@ -122,11 +122,11 @@ export default function ObjectivesEditor({
                 className={input}
                 value={r.key_result}
                 onChange={(e) => update(i, { key_result: e.target.value })}
-                placeholder="es. Lead Scoring"
+                placeholder="e.g. Lead Scoring"
               />
             </div>
             <div>
-              <label className={label}>Peso (%)</label>
+              <label className={label}>Weight (%)</label>
               <input
                 className={input}
                 type="number"
@@ -135,16 +135,16 @@ export default function ObjectivesEditor({
                 step={0.5}
                 value={r.weight}
                 onChange={(e) => update(i, { weight: e.target.value })}
-                placeholder="es. 25"
+                placeholder="e.g. 25"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className={label}>SMART / Requisiti di completamento</label>
+              <label className={label}>SMART / Completion requirements</label>
               <textarea
                 className={`${input} min-h-24`}
                 value={r.smart_requirements}
                 onChange={(e) => update(i, { smart_requirements: e.target.value })}
-                placeholder="Cosa significa, in concreto, completare questo obiettivo"
+                placeholder="What it concretely means to complete this objective"
               />
             </div>
             <div>
@@ -153,7 +153,7 @@ export default function ObjectivesEditor({
                 className={input}
                 value={r.starting_point}
                 onChange={(e) => update(i, { starting_point: e.target.value })}
-                placeholder="es. 0,00%"
+                placeholder="e.g. 0.00%"
               />
             </div>
             <div>
@@ -162,16 +162,16 @@ export default function ObjectivesEditor({
                 className={input}
                 value={r.target_outcome}
                 onChange={(e) => update(i, { target_outcome: e.target.value })}
-                placeholder="es. CPA < 140€"
+                placeholder="e.g. CPA < $140"
               />
             </div>
             <div>
-              <label className={label}>Unità / tipo metrica (opzionale)</label>
+              <label className={label}>Unit / metric type (optional)</label>
               <input
                 className={input}
                 value={r.metric_type}
                 onChange={(e) => update(i, { metric_type: e.target.value })}
-                placeholder="es. pts, €, %, testo"
+                placeholder="e.g. pts, $, %, text"
               />
             </div>
           </div>
@@ -183,17 +183,17 @@ export default function ObjectivesEditor({
         onClick={() => setRows((prev) => [...prev, { ...EMPTY }])}
         className="w-full rounded-xl border border-dashed border-zinc-300 py-3 text-sm text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 dark:border-zinc-700 dark:hover:border-zinc-500 dark:hover:text-zinc-300"
       >
-        + Aggiungi obiettivo
+        + Add objective
       </button>
 
       <div className="sticky bottom-0 rounded-xl border border-zinc-200 bg-white/95 p-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm">
-            Somma pesi:{" "}
+            Weight total:{" "}
             <span className={`font-semibold ${totalOk ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
-              {new Intl.NumberFormat("it-IT").format(total)}%
+              {new Intl.NumberFormat("en-US").format(total)}%
             </span>
-            {!totalOk && <span className="ml-2 text-xs text-zinc-500">deve essere 100% per inviare</span>}
+            {!totalOk && <span className="ml-2 text-xs text-zinc-500">must be 100% to submit</span>}
           </p>
           <div className="flex gap-2">
             <button
@@ -202,7 +202,7 @@ export default function ObjectivesEditor({
               onClick={() => run(false)}
               className="rounded-lg border border-zinc-300 px-3.5 py-2 text-sm font-medium hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
-              Salva bozza
+              Save draft
             </button>
             <button
               type="button"
@@ -210,7 +210,7 @@ export default function ObjectivesEditor({
               onClick={() => run(true)}
               className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
             >
-              Invia al manager
+              Send to manager
             </button>
           </div>
         </div>

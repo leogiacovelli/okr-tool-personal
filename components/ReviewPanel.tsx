@@ -39,16 +39,16 @@ export default function ReviewPanel({
 
   return (
     <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-5 dark:border-blue-900 dark:bg-blue-950/30">
-      <h3 className="mb-3 font-semibold">Review degli obiettivi</h3>
+      <h3 className="mb-3 font-semibold">Review objectives</h3>
 
       <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-        Commento generale (obbligatorio se richiedi modifiche)
+        General comment (required if requesting changes)
       </label>
       <textarea
         className={`${input} min-h-20`}
         value={general}
         onChange={(e) => setGeneral(e.target.value)}
-        placeholder="Feedback complessivo sul set di obiettivi"
+        placeholder="Overall feedback on the objective set"
       />
 
       <button
@@ -56,7 +56,7 @@ export default function ReviewPanel({
         onClick={() => setShowPerObjective((v) => !v)}
         className="mt-3 text-sm text-blue-700 hover:underline dark:text-blue-400"
       >
-        {showPerObjective ? "Nascondi commenti per obiettivo" : "+ Commenta singoli obiettivi"}
+        {showPerObjective ? "Hide per-objective comments" : "+ Comment on individual objectives"}
       </button>
 
       {showPerObjective && (
@@ -64,7 +64,7 @@ export default function ReviewPanel({
           {objectives.map((o, i) => (
             <div key={o.id}>
               <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                Obiettivo {i + 1}: {o.objective}
+                Objective {i + 1}: {o.objective}
               </label>
               <input
                 className={input}
@@ -72,7 +72,7 @@ export default function ReviewPanel({
                 onChange={(e) =>
                   setPerObjective((prev) => ({ ...prev, [o.id]: e.target.value }))
                 }
-                placeholder="Commento su questo obiettivo (opzionale)"
+                placeholder="Comment on this objective (optional)"
               />
             </div>
           ))}
@@ -86,7 +86,7 @@ export default function ReviewPanel({
           onClick={() => decide("approve")}
           className="rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Approva
+          Approve
         </button>
         <button
           type="button"
@@ -94,7 +94,7 @@ export default function ReviewPanel({
           onClick={() => decide("request_changes")}
           className="rounded-lg border border-amber-500 px-3.5 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-amber-400 dark:hover:bg-amber-950"
         >
-          Richiedi modifiche
+          Request changes
         </button>
         {msg && <p className="text-sm text-red-600 dark:text-red-400">{msg}</p>}
       </div>

@@ -7,8 +7,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Tutte le route tranne asset statici: l'autenticazione è obbligatoria
-    // ovunque (la whitelist /login e /auth è dentro updateSession).
+    // All routes except static assets: authentication is required
+    // everywhere (the /login and /auth whitelist lives inside updateSession).
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

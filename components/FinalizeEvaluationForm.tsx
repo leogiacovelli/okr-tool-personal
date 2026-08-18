@@ -46,7 +46,7 @@ export default function FinalizeEvaluationForm({
     setRows((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }
 
-  // Anteprima OKR Result: media pesata delle % inserite.
+  // OKR Result preview: weighted average of the entered percentages.
   const allFilled = objectives.every((o) => rows[o.id].final_score !== "");
   const preview = allFilled
     ? objectives.reduce((s, o) => s + o.weight * (parseFloat(rows[o.id].final_score) || 0), 0) /
@@ -67,7 +67,7 @@ export default function FinalizeEvaluationForm({
         setMsg({ kind: "err", text: res.error });
         return;
       }
-      setMsg({ kind: "ok", text: "Valutazione confermata: semestre chiuso." });
+      setMsg({ kind: "ok", text: "Evaluation confirmed: semester closed." });
       router.refresh();
     });
   }
@@ -76,7 +76,7 @@ export default function FinalizeEvaluationForm({
     <div className="space-y-4">
       {!memberProposed && (
         <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-          Il membro non ha ancora proposto i risultati. Puoi comunque inserirli e confermare tu.
+          The member hasn't proposed results yet. You can still enter them and confirm yourself.
         </p>
       )}
 
@@ -87,7 +87,7 @@ export default function FinalizeEvaluationForm({
         >
           <div className="mb-3">
             <p className="text-xs font-semibold text-zinc-400">
-              Obiettivo {i + 1} · peso {o.weight}%
+              Objective {i + 1} · weight {o.weight}%
             </p>
             <h3 className="font-semibold">{o.objective}</h3>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -95,17 +95,17 @@ export default function FinalizeEvaluationForm({
               {o.target_outcome && <> · Target: {o.target_outcome}</>}
             </p>
             <p className="mt-1 text-sm">
-              <span className="text-zinc-500 dark:text-zinc-400">Proposta del membro:</span>{" "}
+              <span className="text-zinc-500 dark:text-zinc-400">Member's proposal:</span>{" "}
               {o.result_value ?? "—"} · <strong>{fmtPct(o.proposed_score)}</strong>
               {o.result_note && (
-                <span className="block text-zinc-500 dark:text-zinc-400">Nota: {o.result_note}</span>
+                <span className="block text-zinc-500 dark:text-zinc-400">Note: {o.result_note}</span>
               )}
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="sm:col-span-2">
-              <label className={label}>Result confermato</label>
+              <label className={label}>Confirmed result</label>
               <input
                 className={input}
                 value={rows[o.id].result_value}
@@ -113,7 +113,7 @@ export default function FinalizeEvaluationForm({
               />
             </div>
             <div>
-              <label className={label}>% confermata (0–120)</label>
+              <label className={label}>Confirmed % (0–120)</label>
               <input
                 className={input}
                 type="number"
@@ -125,7 +125,7 @@ export default function FinalizeEvaluationForm({
               />
             </div>
             <div className="sm:col-span-3">
-              <label className={label}>Nota (opzionale)</label>
+              <label className={label}>Note (optional)</label>
               <input
                 className={input}
                 value={rows[o.id].result_note}
@@ -139,11 +139,11 @@ export default function FinalizeEvaluationForm({
       <div className="sticky bottom-0 rounded-xl border border-zinc-200 bg-white/95 p-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm">
-            Anteprima OKR Result:{" "}
+            OKR Result preview:{" "}
             <span className="font-semibold">
               {preview !== null ? fmtPct(Math.round(preview * 100) / 100) : "—"}
             </span>
-            <span className="ml-2 text-xs text-zinc-500">media pesata delle % confermate</span>
+            <span className="ml-2 text-xs text-zinc-500">weighted average of confirmed %</span>
           </p>
           <button
             type="button"
@@ -151,7 +151,7 @@ export default function FinalizeEvaluationForm({
             onClick={confirm}
             className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
           >
-            Conferma valutazione finale
+            Confirm final evaluation
           </button>
         </div>
         {msg && (

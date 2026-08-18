@@ -2,7 +2,7 @@ import type { OkrStatus } from "@/lib/types";
 
 const MAP: Record<OkrStatus | "none", { label: string; cls: string }> = {
   draft: {
-    label: "Bozza",
+    label: "Draft",
     cls: "bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
   },
   submitted: {
@@ -10,23 +10,23 @@ const MAP: Record<OkrStatus | "none", { label: string; cls: string }> = {
     cls: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
   },
   changes_requested: {
-    label: "Modifiche richieste",
+    label: "Changes requested",
     cls: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
   },
   approved: {
-    label: "Approvato",
+    label: "Approved",
     cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
   },
   evaluation: {
-    label: "In valutazione",
+    label: "In evaluation",
     cls: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300",
   },
   completed: {
-    label: "Chiuso",
+    label: "Closed",
     cls: "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
   },
   none: {
-    label: "Non iniziato",
+    label: "Not started",
     cls: "border border-dashed border-zinc-300 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400",
   },
 };

@@ -14,7 +14,7 @@ export default async function DashboardPage({
 }) {
   const { error } = await searchParams;
   const profile = await getProfile();
-  // L'osservatore non ha OKR propri: la sua home è la vista Team.
+  // Viewers don't have their own OKRs: their home is the Team view.
   if (profile.role === "viewer") redirect("/team");
   const supabase = await createClient();
 
@@ -30,9 +30,9 @@ export default async function DashboardPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">I miei OKR</h1>
+        <h1 className="text-2xl font-semibold">My OKRs</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Obiettivi semestrali: definisci, invia in review, poi proponi i risultati a fine semestre.
+          Semi-annual objectives: define them, submit for review, then propose the results at the end of the semester.
         </p>
       </div>
 
@@ -44,7 +44,7 @@ export default async function DashboardPage({
 
       {periods.length === 0 && (
         <p className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-          Nessun semestre configurato: chiedi al manager di creare il periodo corrente.
+          No semester has been configured yet: ask your manager to create the current period.
         </p>
       )}
 
@@ -66,7 +66,7 @@ export default async function DashboardPage({
                   <h2 className="font-semibold">{p.label}</h2>
                   {current && (
                     <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white dark:bg-zinc-100 dark:text-zinc-900">
-                      In corso
+                      Current
                     </span>
                   )}
                 </div>
@@ -83,12 +83,12 @@ export default async function DashboardPage({
               )}
               {set?.status === "changes_requested" && (
                 <p className="mb-4 rounded-lg bg-amber-50 p-2 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                  Il manager ha richiesto delle modifiche: leggi il feedback e reinvia.
+                  Your manager requested changes: read the feedback and resubmit.
                 </p>
               )}
               {set?.status === "evaluation" && (
                 <p className="mb-4 rounded-lg bg-violet-50 p-2 text-sm text-violet-800 dark:bg-violet-950 dark:text-violet-300">
-                  Fase di valutazione aperta: proponi i risultati raggiunti.
+                  Evaluation phase open: propose the results you achieved.
                 </p>
               )}
 
@@ -97,13 +97,13 @@ export default async function DashboardPage({
                   href={`/okr/${p.id}`}
                   className="inline-flex rounded-lg border border-zinc-300 px-3.5 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
                 >
-                  Apri
+                  Open
                 </Link>
               ) : (
                 <form action={createSetAction}>
                   <input type="hidden" name="period_id" value={p.id} />
                   <button className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white">
-                    Inizia bozza
+                    Start draft
                   </button>
                 </form>
               )}

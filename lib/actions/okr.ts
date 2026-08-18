@@ -10,15 +10,15 @@ import { notifySubmitted, notifyResultsProposed } from "@/lib/email";
 import type { ActionResult } from "@/lib/types";
 
 /**
- * Azioni del MEMBRO. Ogni azione usa il client Supabase con la sessione
- * dell'utente: RLS e trigger di stato si applicano sempre — la validazione
- * qui serve solo a dare messaggi di errore chiari.
+ * MEMBER actions. Every action uses the Supabase client with the user's
+ * session: RLS and state triggers always apply — the validation here
+ * only serves to give clear error messages.
  */
 
 /**
- * Contesto per le notifiche: il destinatario delle email di submit/proposta
- * è l'APPROVATORE del proprietario, cioè il manager del suo team
- * (organigramma), non più un "manager globale".
+ * Context for notifications: the recipient of submit/proposal emails
+ * is the owner's APPROVER, i.e. the manager of their team (org chart),
+ * no longer a "global manager".
  */
 async function setContext(setId: string) {
   const supabase = await createClient();
@@ -59,12 +59,12 @@ async function setContext(setId: string) {
     memberId: row.profile_id,
     periodId: row.period_id,
     periodLabel: row.period?.label ?? "",
-    memberName: row.owner?.full_name || row.owner?.email || "Un membro del team",
+    memberName: row.owner?.full_name || row.owner?.email || "A team member",
     managerEmail: approverEmail,
   };
 }
 
-/** Crea la bozza del set per un semestre (bottone "Inizia bozza"). */
+/** Creates the draft set for a semester ("Start draft" button). */
 export async function createSetAction(formData: FormData) {
   const periodId = String(formData.get("period_id") ?? "");
   const profile = await getProfile();
@@ -74,7 +74,7 @@ export async function createSetAction(formData: FormData) {
     .from("okr_sets")
     .insert({ profile_id: profile.id, period_id: periodId });
 
-  // Set già esistente (vincolo unique): va bene, si apre quello.
+  // Set already exists (unique constraint): fine, we just open it.
   if (error && error.code !== "23505") {
     redirect(`/dashboard?error=${encodeURIComponent(error.message)}`);
   }
@@ -82,7 +82,7 @@ export async function createSetAction(formData: FormData) {
   redirect(`/okr/${periodId}`);
 }
 
-/** Salva la bozza (sovrascrive la versione precedente, come da processo). */
+/** Saves the draft (overwrites the previous version, as per the process). */
 export async function saveObjectivesAction(setId: string, items: unknown): Promise<ActionResult> {
   await getProfile();
   const parsed = objectivesPayload.safeParse(items);
@@ -99,12 +99,12 @@ export async function saveObjectivesAction(setId: string, items: unknown): Promi
   return { ok: true };
 }
 
-/** Invia il set al manager (draft/changes_requested → submitted). */
+/** Sends the set to the manager (draft/changes_requested → submitted). */
 export async function submitSetAction(setId: string): Promise<ActionResult> {
   await getProfile();
   const supabase = await createClient();
 
-  // Pre-check per un messaggio chiaro (il trigger DB lo garantisce comunque).
+  // Pre-check for a clear message (the DB trigger enforces it regardless).
   const { data: objectives } = await supabase
     .from("objectives")
     .select("weight")
@@ -112,11 +112,11 @@ export async function submitSetAction(setId: string): Promise<ActionResult> {
 
   const total = weightSum((objectives ?? []).map((o) => Number(o.weight)));
   if (!objectives || objectives.length === 0) {
-    return { error: "Aggiungi almeno un obiettivo prima di inviare" };
+    return { error: "Add at least one objective before submitting" };
   }
   if (total !== 100) {
     return {
-      error: `La somma dei pesi deve essere il 100% (attuale: ${new Intl.NumberFormat("it-IT").format(total)}%)`,
+      error: `The sum of the weights must be 100% (current: ${new Intl.NumberFormat("en-US").format(total)}%)`,
     };
   }
 
@@ -135,7 +135,7 @@ export async function submitSetAction(setId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Il membro propone Result + % (0–120) per ogni obiettivo. */
+/** The member proposes a Result + % (0–120) for each objective. */
 export async function proposeResultsAction(setId: string, items: unknown): Promise<ActionResult> {
   await getProfile();
   const parsed = proposalsPayload.safeParse(items);

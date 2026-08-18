@@ -5,9 +5,10 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
-# Variabili sensibili: mai committate
+# Sensitive variables: never committed
 .env
 .env.local
 .env*.local
 .vercel
 .env*
+*.tsbuildinfo

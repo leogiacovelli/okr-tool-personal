@@ -4,8 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
 /**
- * Aggiorna la sessione Supabase su ogni richiesta e impone l'autenticazione:
- * nessuna route con dati sensibili è raggiungibile senza login.
+ * Refreshes the Supabase session on every request and enforces
+ * authentication: no route with sensitive data is reachable without login.
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -29,7 +29,7 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Non rimuovere: mantiene viva la sessione e verifica il token con Supabase.
+  // Do not remove: keeps the session alive and verifies the token with Supabase.
   const {
     data: { user },
   } = await supabase.auth.getUser();

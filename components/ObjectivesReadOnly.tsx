@@ -2,9 +2,9 @@ import { fmtPct } from "@/lib/format";
 import type { Objective } from "@/lib/types";
 
 /**
- * Vista in sola lettura degli obiettivi di un set.
- * showProposals: mostra Result/% proposti dal membro (fase valutazione).
- * showFinals: mostra la % confermata dal manager (semestre chiuso).
+ * Read-only view of a set's objectives.
+ * showProposals: shows the Result/% proposed by the member (evaluation phase).
+ * showFinals: shows the % confirmed by the manager (closed semester).
  */
 export default function ObjectivesReadOnly({
   objectives,
@@ -16,7 +16,7 @@ export default function ObjectivesReadOnly({
   showFinals?: boolean;
 }) {
   if (objectives.length === 0) {
-    return <p className="text-sm text-zinc-500">Nessun obiettivo definito.</p>;
+    return <p className="text-sm text-zinc-500">No objectives defined.</p>;
   }
 
   return (
@@ -28,11 +28,11 @@ export default function ObjectivesReadOnly({
         >
           <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p className="text-xs font-semibold text-zinc-400">Obiettivo {i + 1}</p>
+              <p className="text-xs font-semibold text-zinc-400">Objective {i + 1}</p>
               <h3 className="font-semibold">{o.objective}</h3>
             </div>
             <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              Peso {fmtPct(o.weight)}
+              Weight {fmtPct(o.weight)}
             </span>
           </div>
 
@@ -43,7 +43,7 @@ export default function ObjectivesReadOnly({
             </div>
             {o.metric_type && (
               <div>
-                <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Unità / metrica</dt>
+                <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Unit / metric</dt>
                 <dd>{o.metric_type}</dd>
               </div>
             )}
@@ -62,7 +62,7 @@ export default function ObjectivesReadOnly({
             {o.smart_requirements && (
               <div className="sm:col-span-2">
                 <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  SMART / Requisiti di completamento
+                  SMART / Completion requirements
                 </dt>
                 <dd className="whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
                   {o.smart_requirements}
@@ -80,19 +80,19 @@ export default function ObjectivesReadOnly({
                 </div>
                 {showProposals && (
                   <div>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">% proposta</p>
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Proposed %</p>
                     <p>{fmtPct(o.proposed_score)}</p>
                   </div>
                 )}
                 {showFinals && (
                   <div>
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">% confermata</p>
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Confirmed %</p>
                     <p className="font-semibold">{fmtPct(o.final_score)}</p>
                   </div>
                 )}
                 {o.result_note && (
                   <div className="sm:col-span-3">
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Nota</p>
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Note</p>
                     <p className="whitespace-pre-wrap">{o.result_note}</p>
                   </div>
                 )}

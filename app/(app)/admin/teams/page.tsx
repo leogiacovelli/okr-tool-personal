@@ -10,12 +10,12 @@ const select =
 const label = "mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400";
 
 /**
- * Organigramma (solo admin): crea team, assegna il manager, innesta i team
- * uno sotto l'altro. Da questa struttura derivano approvazioni e visibilità:
- * · gli OKR di una persona li approva il manager del suo team;
- * · un manager legge tutto il proprio sottoalbero (sola lettura sotto il
- *   primo livello) e non vede nulla dei rami paralleli.
- * Le persone si spostano tra team dalla pagina «Membri».
+ * Org chart (admin only): create teams, assign the manager, nest teams
+ * under one another. This structure drives approvals and visibility:
+ * · a person's OKRs are approved by their team's manager;
+ * · a manager can read their entire subtree (read-only below the first
+ *   level) and sees nothing of parallel branches.
+ * People are moved between teams from the "Members" page.
  */
 export default async function TeamsPage({
   searchParams,
@@ -40,11 +40,11 @@ export default async function TeamsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Organigramma</h1>
+        <h1 className="text-2xl font-semibold">Org Chart</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Chi approva gli OKR di una persona è il manager del suo team. Un manager vede il proprio
-          sottoalbero; i rami paralleli non si vedono tra loro. Le persone si spostano tra team
-          dalla pagina «Membri».
+          A person's OKRs are approved by their team's manager. A manager sees their own
+          subtree; parallel branches can't see each other. People are moved between teams
+          from the "Members" page.
         </p>
       </div>
 
@@ -55,7 +55,7 @@ export default async function TeamsPage({
       )}
       {ok && (
         <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-          Organigramma aggiornato.
+          Org chart updated.
         </p>
       )}
 
@@ -64,13 +64,13 @@ export default async function TeamsPage({
         className="grid gap-4 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900 sm:grid-cols-4"
       >
         <div>
-          <label className={label}>Nome del nuovo team</label>
-          <input className={input} name="name" required placeholder="es. Vendite" />
+          <label className={label}>New team name</label>
+          <input className={input} name="name" required placeholder="e.g. Sales" />
         </div>
         <div>
           <label className={label}>Manager</label>
           <select className={`${select} w-full`} name="manager_id" defaultValue="">
-            <option value="">— da assegnare —</option>
+            <option value="">— to be assigned —</option>
             {people.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.full_name || p.email}
@@ -79,9 +79,9 @@ export default async function TeamsPage({
           </select>
         </div>
         <div>
-          <label className={label}>Sta sotto a</label>
+          <label className={label}>Reports to</label>
           <select className={`${select} w-full`} name="parent_team_id" defaultValue="">
-            <option value="">— nessuno (radice) —</option>
+            <option value="">— none (top level) —</option>
             {teams.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
@@ -91,7 +91,7 @@ export default async function TeamsPage({
         </div>
         <div className="flex items-end">
           <button className="w-full rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white">
-            Crea team
+            Create team
           </button>
         </div>
       </form>
@@ -108,18 +108,18 @@ export default async function TeamsPage({
               <div>
                 <h2 className="font-semibold">{t.name}</h2>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {memberCount(t.id)} persone · manager attuale: {personName(t.manager_id)}
+                  {memberCount(t.id)} people · current manager: {personName(t.manager_id)}
                 </p>
               </div>
               <div className="flex flex-wrap items-end gap-3">
                 <div>
-                  <label className={label}>Nome</label>
+                  <label className={label}>Name</label>
                   <input className={`${select} w-44`} name="name" defaultValue={t.name} required />
                 </div>
                 <div>
                   <label className={label}>Manager</label>
                   <select className={select} name="manager_id" defaultValue={t.manager_id ?? ""}>
-                    <option value="">— nessuno —</option>
+                    <option value="">— none —</option>
                     {people.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.full_name || p.email}
@@ -128,13 +128,13 @@ export default async function TeamsPage({
                   </select>
                 </div>
                 <div>
-                  <label className={label}>Sta sotto a</label>
+                  <label className={label}>Reports to</label>
                   <select
                     className={select}
                     name="parent_team_id"
                     defaultValue={t.parent_team_id ?? ""}
                   >
-                    <option value="">— nessuno (radice) —</option>
+                    <option value="">— none (top level) —</option>
                     {teams
                       .filter((x) => x.id !== t.id)
                       .map((x) => (
@@ -145,7 +145,7 @@ export default async function TeamsPage({
                   </select>
                 </div>
                 <button className="rounded-lg border border-zinc-300 px-3.5 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">
-                  Salva
+                  Save
                 </button>
               </div>
             </div>

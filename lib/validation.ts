@@ -1,113 +1,114 @@
 import { z } from "zod";
 
 /**
- * Validazione lato server (le server action la applicano SEMPRE, oltre alla
- * validazione client dei form). I vincoli critici — somma pesi = 100 al
- * submit, punteggi 0–120 — sono comunque applicati anche dal database.
+ * Server-side validation (server actions ALWAYS apply it, on top of the
+ * client-side form validation). The critical constraints — weights sum to
+ * 100 on submit, scores 0–120 — are enforced by the database as well.
  */
 
 export const objectiveInput = z.object({
-  objective: z.string().trim().min(1, "Il titolo dell'obiettivo è obbligatorio").max(300),
-  key_result: z.string().trim().min(1, "Il Key Result è obbligatorio").max(300),
+  objective: z.string().trim().min(1, "The objective title is required").max(300),
+  key_result: z.string().trim().min(1, "The Key Result is required").max(300),
   smart_requirements: z.string().trim().max(5000).default(""),
   starting_point: z.string().trim().max(500).default(""),
   target_outcome: z.string().trim().max(500).default(""),
   metric_type: z.string().trim().max(100).default(""),
   weight: z.coerce
-    .number({ invalid_type_error: "Il peso deve essere un numero" })
-    .gt(0, "Ogni peso deve essere maggiore di 0")
-    .lte(100, "Ogni peso deve essere al massimo 100"),
+    .number({ invalid_type_error: "The weight must be a number" })
+    .gt(0, "Each weight must be greater than 0")
+    .lte(100, "Each weight must be at most 100"),
 });
 
 export const objectivesPayload = z
   .array(objectiveInput)
-  .min(1, "Aggiungi almeno un obiettivo")
-  .max(20, "Massimo 20 obiettivi per semestre");
+  .min(1, "Add at least one objective")
+  .max(20, "Maximum 20 objectives per semester");
 
 export const proposalInput = z.object({
   id: z.string().uuid(),
-  result_value: z.string().trim().min(1, "Indica il risultato raggiunto").max(500),
+  result_value: z.string().trim().min(1, "State the result achieved").max(500),
   result_note: z.string().trim().max(2000).default(""),
   proposed_score: z.coerce
-    .number({ invalid_type_error: "La % deve essere un numero" })
-    .min(0, "La % non può essere negativa")
-    .max(120, "La % massima è 120"),
+    .number({ invalid_type_error: "The % must be a number" })
+    .min(0, "The % cannot be negative")
+    .max(120, "The maximum % is 120"),
 });
 
 export const proposalsPayload = z.array(proposalInput).min(1);
 
 export const finalScoreInput = z.object({
   id: z.string().uuid(),
-  result_value: z.string().trim().min(1, "Indica il risultato").max(500),
+  result_value: z.string().trim().min(1, "State the result").max(500),
   result_note: z.string().trim().max(2000).default(""),
   final_score: z.coerce
-    .number({ invalid_type_error: "La % deve essere un numero" })
-    .min(0, "La % non può essere negativa")
-    .max(120, "La % massima è 120"),
+    .number({ invalid_type_error: "The % must be a number" })
+    .min(0, "The % cannot be negative")
+    .max(120, "The maximum % is 120"),
 });
 
 export const finalScoresPayload = z.array(finalScoreInput).min(1);
 
 export const periodInput = z
   .object({
-    label: z.string().trim().min(1, "Etichetta obbligatoria (es. H1 2026)").max(50),
-    starts_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data di inizio non valida"),
-    ends_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data di fine non valida"),
+    label: z.string().trim().min(1, "Label required (e.g. H1 2026)").max(50),
+    starts_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid start date"),
+    ends_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid end date"),
   })
   .refine((p) => p.starts_on < p.ends_on, {
-    message: "La data di inizio deve precedere quella di fine",
+    message: "The start date must come before the end date",
   });
 
 export const inviteInput = z.object({
-  email: z.string().trim().email("Email non valida"),
-  full_name: z.string().trim().min(1, "Nome obbligatorio").max(200),
+  email: z.string().trim().email("Invalid email"),
+  full_name: z.string().trim().min(1, "Name required").max(200),
 });
 
 export const teamInput = z.object({
-  name: z.string().trim().min(1, "Nome del team obbligatorio").max(100),
+  name: z.string().trim().min(1, "Team name required").max(100),
   manager_id: z.string().uuid().nullable(),
   parent_team_id: z.string().uuid().nullable(),
 });
 
 /**
- * Requisiti password, allineati alle policy impostate su Supabase Auth:
- * minimo 10 caratteri con maiuscole, minuscole, numeri e simboli. Supabase
- * rifiuta inoltre le password già comparse in violazioni note (leaked password
- * protection) — quella è la protezione che pesa di più, ma non è replicabile
- * qui lato client. Questi controlli danno un messaggio d'errore chiaro PRIMA
- * della chiamata: la regola vera resta quella applicata dal server.
+ * Password requirements, aligned with the policy set on Supabase Auth:
+ * minimum 10 characters with uppercase, lowercase, numbers, and symbols.
+ * Supabase also rejects passwords that have already appeared in known
+ * breaches (leaked password protection) — that's the protection that
+ * matters most, but it can't be replicated here client-side. These checks
+ * give a clear error message BEFORE the call: the real rule remains the
+ * one enforced by the server.
  */
 export const PASSWORD_MIN_LENGTH = 10;
 
 export function passwordError(password: string): string | null {
   if (password.length < PASSWORD_MIN_LENGTH) {
-    return `La password deve avere almeno ${PASSWORD_MIN_LENGTH} caratteri.`;
+    return `The password must be at least ${PASSWORD_MIN_LENGTH} characters long.`;
   }
   if (!/[a-z]/.test(password)) {
-    return "La password deve contenere almeno una lettera minuscola.";
+    return "The password must contain at least one lowercase letter.";
   }
   if (!/[A-Z]/.test(password)) {
-    return "La password deve contenere almeno una lettera maiuscola.";
+    return "The password must contain at least one uppercase letter.";
   }
   if (!/[0-9]/.test(password)) {
-    return "La password deve contenere almeno un numero.";
+    return "The password must contain at least one number.";
   }
   if (!/[^a-zA-Z0-9]/.test(password)) {
-    return "La password deve contenere almeno un simbolo (es. ! ? # @).";
+    return "The password must contain at least one symbol (e.g. ! ? # @).";
   }
   return null;
 }
 
 /**
- * Domini di posta aziendali ammessi all'auto-registrazione. DEVONO restare
- * allineati alla funzione is_allowed_signup_domain del database (migrazione
- * 00007): qui il controllo serve solo a dare un errore immediato e leggibile,
- * il filtro vero è nel trigger handle_new_user.
+ * Company email domains allowed for self sign-up. MUST stay in sync with
+ * the is_allowed_signup_domain function on the database (migration 00007):
+ * the check here only gives an immediate, readable error, the real filter
+ * is the handle_new_user trigger.
  */
 export const ALLOWED_EMAIL_DOMAINS = [
-  "tuaazienda.com",
-  "secondobrand.com",
-  "terzobrand.com",
+  "yourcompany.com",
+  "secondbrand.com",
+  "thirdbrand.com",
 ] as const;
 
 export function isAllowedEmailDomain(email: string): boolean {

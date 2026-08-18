@@ -3,8 +3,8 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Callback per magic link, inviti e conferme email.
- * Gestisce sia il flusso PKCE (?code=) sia i link con token_hash.
+ * Callback for magic links, invites, and email confirmations.
+ * Handles both the PKCE flow (?code=) and links with token_hash.
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);

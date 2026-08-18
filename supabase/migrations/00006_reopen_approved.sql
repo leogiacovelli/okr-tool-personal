@@ -1,22 +1,22 @@
 -- ============================================================================
--- RIAPERTURA DI UN SET GIÀ APPROVATO.
+-- REOPENING AN ALREADY-APPROVED SET.
 --
--- Caso d'uso: gli OKR vengono approvati e presentati adesso, ma più avanti
--- (es. a inizio semestre) va corretto un obiettivo — eliminarne uno e
--- ribilanciare i pesi. Con la state machine originale l'approvazione
--- congelava tutto e non c'era modo di rientrare in definizione.
+-- Use case: OKRs get approved and presented now, but later on (e.g. early
+-- in the semester) an objective needs fixing — removing one and rebalancing
+-- the weights. With the original state machine, approval froze everything
+-- and there was no way back into definition.
 --
--- Questa migrazione aggiunge una sola transizione all'indietro:
+-- This migration adds a single backward transition:
 --
---   approved → changes_requested   (SOLO il manager)
+--   approved → changes_requested   (manager ONLY)
 --
--- Da lì il set torna editabile per il proprietario esattamente come in
--- "changes_requested": elimina/aggiunge obiettivi e sistema i pesi, poi
--- reinvia (il vincolo somma pesi = 100% resta bloccante) → nuova approvazione.
--- Tutto resta tracciato nell'audit log.
+-- From there the set becomes editable again for the owner exactly like in
+-- "changes_requested": remove/add objectives and fix the weights, then
+-- resubmit (the weights-sum-to-100% constraint still applies) → new approval.
+-- Everything remains tracked in the audit log.
 --
--- La funzione viene ridefinita PER INTERO (create or replace) così che la
--- copia live resti la fonte di verità completa e leggibile.
+-- The function is redefined IN FULL (create or replace) so the live copy
+-- stays the complete, readable source of truth.
 -- ============================================================================
 
 create or replace function public.tg_okr_sets_transition()
@@ -36,30 +36,30 @@ begin
   v_is_owner := v_bypass or (v_actor = old.profile_id);
   v_is_mgr   := v_bypass or public.is_manager();
 
-  -- Campi mai modificabili direttamente dai client: vengono ripristinati e
-  -- poi assegnati solo dal ramo di transizione pertinente.
+  -- Fields never directly editable by clients: reset here and then set
+  -- only by the relevant transition branch.
   if new.profile_id <> old.profile_id or new.period_id <> old.period_id then
-    raise exception 'Proprietario e periodo di un set OKR non sono modificabili';
+    raise exception 'The owner and period of an OKR set cannot be changed';
   end if;
 
-  -- Aggiornamenti senza cambio di stato -------------------------------------
+  -- Updates without a status change ------------------------------------
   if new.status = old.status then
     if new.final_score  is distinct from old.final_score
        or new.submitted_at is distinct from old.submitted_at
        or new.approved_at  is distinct from old.approved_at
        or new.completed_at is distinct from old.completed_at then
-      raise exception 'Questi campi sono gestiti automaticamente dal sistema';
+      raise exception 'These fields are managed automatically by the system';
     end if;
-    -- Il membro può marcare "risultati proposti" solo in fase di valutazione
+    -- The member can only mark "results proposed" during the evaluation phase
     if new.results_proposed_at is distinct from old.results_proposed_at
        and not (v_is_owner and old.status = 'evaluation') then
-      raise exception 'La proposta dei risultati è consentita solo in fase di valutazione';
+      raise exception 'Proposing results is only allowed during the evaluation phase';
     end if;
     return new;
   end if;
 
-  -- Transizioni di stato -----------------------------------------------------
-  -- Ripristina i campi protetti: solo il ramo giusto li imposta.
+  -- State transitions -----------------------------------------------------
+  -- Reset protected fields: only the right branch sets them.
   new.final_score         := old.final_score;
   new.submitted_at        := old.submitted_at;
   new.approved_at         := old.approved_at;
@@ -68,45 +68,45 @@ begin
 
   if old.status in ('draft', 'changes_requested') and new.status = 'submitted' then
     if not v_is_owner then
-      raise exception 'Solo il proprietario può inviare i propri obiettivi';
+      raise exception 'Only the owner can submit their own objectives';
     end if;
     select count(*), coalesce(sum(weight), 0)
       into v_count, v_weight_sum
       from public.objectives where set_id = old.id;
     if v_count = 0 then
-      raise exception 'Aggiungi almeno un obiettivo prima di inviare';
+      raise exception 'Add at least one objective before submitting';
     end if;
-    -- Validazione bloccante richiesta dalla spec: somma pesi = 100%
+    -- Blocking validation required by the spec: weights sum to 100%
     if round(v_weight_sum, 2) <> 100.00 then
-      raise exception 'La somma dei pesi deve essere il 100%% (attuale: % %%)', round(v_weight_sum, 2);
+      raise exception 'The sum of the weights must be 100%% (current: % %%)', round(v_weight_sum, 2);
     end if;
     new.submitted_at := now();
 
   elsif old.status = 'submitted' and new.status = 'approved' then
-    if not v_is_mgr then raise exception 'Solo il manager può approvare'; end if;
+    if not v_is_mgr then raise exception 'Only the manager can approve'; end if;
     new.approved_at := now();
 
   elsif old.status = 'submitted' and new.status = 'changes_requested' then
-    if not v_is_mgr then raise exception 'Solo il manager può richiedere modifiche'; end if;
+    if not v_is_mgr then raise exception 'Only the manager can request changes'; end if;
 
-  -- NUOVO: il manager può RIAPRIRE un set già approvato per correzioni
-  -- (eliminare un obiettivo, ribilanciare i pesi). Azzera l'approvazione:
-  -- servirà una nuova approvazione dopo il reinvio.
+  -- NEW: the manager can REOPEN an already-approved set for corrections
+  -- (removing an objective, rebalancing weights). Clears the approval:
+  -- a new approval will be needed after resubmission.
   elsif old.status = 'approved' and new.status = 'changes_requested' then
-    if not v_is_mgr then raise exception 'Solo il manager può riaprire un set approvato'; end if;
+    if not v_is_mgr then raise exception 'Only the manager can reopen an approved set'; end if;
     new.approved_at := null;
 
   elsif old.status = 'approved' and new.status = 'evaluation' then
-    if not v_is_mgr then raise exception 'Solo il manager può aprire la fase di valutazione'; end if;
+    if not v_is_mgr then raise exception 'Only the manager can open the evaluation phase'; end if;
 
   elsif old.status = 'evaluation' and new.status = 'completed' then
-    if not v_is_mgr then raise exception 'Solo il manager può confermare la valutazione finale'; end if;
+    if not v_is_mgr then raise exception 'Only the manager can confirm the final evaluation'; end if;
     select count(*) into v_missing
       from public.objectives where set_id = old.id and final_score is null;
     if v_missing > 0 then
-      raise exception 'Tutti gli obiettivi devono avere una %% confermata prima di chiudere il semestre';
+      raise exception 'Every objective must have a confirmed %% before closing the semester';
     end if;
-    -- OKR Result = media pesata delle % confermate (i pesi sommano a 100)
+    -- OKR Result = weighted average of the confirmed % (weights sum to 100)
     select round(sum(weight * final_score) / nullif(sum(weight), 0), 2)
       into v_score
       from public.objectives where set_id = old.id;
@@ -114,7 +114,7 @@ begin
     new.completed_at := now();
 
   else
-    raise exception 'Transizione di stato non consentita: % → %', old.status, new.status;
+    raise exception 'State transition not allowed: % → %', old.status, new.status;
   end if;
 
   return new;

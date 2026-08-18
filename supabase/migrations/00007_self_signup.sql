@@ -1,45 +1,45 @@
 -- ============================================================================
--- AUTO-REGISTRAZIONE CON FILTRO SUI DOMINI AZIENDALI.
+-- SELF SIGN-UP WITH A COMPANY DOMAIN FILTER.
 --
--- Contesto: il tool viene esteso da 7 a ~25 persone (tutta l'azienda). Creare
--- gli account a mano e distribuire password provvisorie non regge a quella
--- scala, quindi si riaprono i signup autonomi — ma solo per chi ha un indirizzo
--- di posta aziendale.
+-- Context: the tool is being rolled out from 7 to ~25 people (the whole
+-- company). Creating accounts by hand and distributing temporary passwords
+-- doesn't scale, so self sign-up is reopened — but only for people with a
+-- company email address.
 --
--- Due cose, entrambe nel trigger handle_new_user (che intercetta OGNI nuovo
--- utente, quindi il controllo non è aggirabile dal client):
+-- Two things, both in the handle_new_user trigger (which intercepts EVERY
+-- new user, so the check can't be bypassed from the client):
 --
--- 1. FILTRO DOMINI: la registrazione è consentita solo a
---       @tuaazienda.com · @secondobrand.com · @terzobrand.com
---    Chi prova con un altro indirizzo riceve un errore e l'utente auth NON
---    viene creato (l'eccezione fa rollback dell'insert su auth.users).
---    NB: gli account creati da un admin (SQL Editor / service_role / dashboard
---    Supabase) NON passano dal filtro: restano sempre possibili, anche con
---    domini diversi (es. l'admin di riserva su gmail).
+-- 1. DOMAIN FILTER: sign-up is only allowed for
+--       @yourcompany.com · @secondbrand.com · @thirdbrand.com
+--    Anyone trying with another address gets an error and the auth user is
+--    NOT created (the exception rolls back the insert on auth.users).
+--    NB: accounts created by an admin (SQL Editor / service_role / Supabase
+--    dashboard) don't go through the filter: they're always possible, even
+--    with other domains (e.g. a backup admin on gmail).
 --
--- 2. TEAM DI ATTERRAGGIO: finora il trigger assegnava "il primo team creato"
---    (retaggio della v1 a team unico) — che oggi è la Direzione Generale.
---    Con l'auto-registrazione ci finirebbero tutti, ereditando l'approvatore
---    sbagliato. I nuovi iscritti vanno invece in un team di parcheggio
---    "In attesa di assegnazione" (senza manager: nessuno approva finché non
---    li smisti dalla pagina Membri).
+-- 2. LANDING TEAM: until now the trigger assigned "the first team created"
+--    (a leftover from the single-team v1) — which today is Marketing
+--    Leadership. With self sign-up, everyone would end up there, inheriting
+--    the wrong approver. New sign-ups instead land in a holding team
+--    "Awaiting assignment" (no manager: nobody approves them until you sort
+--    them from the Members page).
 -- ============================================================================
 
--- Team di parcheggio per i nuovi iscritti. Senza manager_id e senza parent:
--- resta fuori dall'organigramma finché le persone non vengono assegnate.
+-- Holding team for new sign-ups. No manager_id and no parent: stays outside
+-- the org chart until people are assigned.
 insert into public.teams (name)
-select 'In attesa di assegnazione'
+select 'Awaiting assignment'
 where not exists (
-  select 1 from public.teams where name = 'In attesa di assegnazione'
+  select 1 from public.teams where name = 'Awaiting assignment'
 );
 
--- Domini di posta aziendali ammessi all'auto-registrazione.
+-- Company email domains allowed for self sign-up.
 create or replace function public.is_allowed_signup_domain(p_email text)
 returns boolean
 language sql immutable
 as $$
   select lower(coalesce(p_email, '')) ~
-         '@(tuaazienda\.com|secondobrand\.com|terzobrand\.com)$';
+         '@(yourcompany\.com|secondbrand\.com|thirdbrand\.com)$';
 $$;
 
 create or replace function public.handle_new_user()
@@ -49,18 +49,18 @@ as $$
 declare
   v_team uuid;
 begin
-  -- Filtro domini: si applica SOLO all'auto-registrazione. Le creazioni fatte
-  -- da un amministratore (auth.uid() is null: SQL Editor, service_role,
-  -- dashboard Supabase) restano libere.
+  -- Domain filter: applies ONLY to self sign-up. Accounts created by an
+  -- admin (auth.uid() is null: SQL Editor, service_role, Supabase
+  -- dashboard) remain unrestricted.
   if auth.uid() is null and not public.is_allowed_signup_domain(new.email) then
-    raise exception 'Registrazione consentita solo con un indirizzo email aziendale (@tuaazienda.com, @secondobrand.com, @terzobrand.com)';
+    raise exception 'Sign-up is only allowed with a company email address (@yourcompany.com, @secondbrand.com, @thirdbrand.com)';
   end if;
 
-  -- I nuovi iscritti atterrano nel team di parcheggio, non nel primo team
-  -- creato (che è la Direzione). Fallback: primo team, se il parcheggio
-  -- fosse stato rinominato/eliminato.
+  -- New sign-ups land in the holding team, not the first team created
+  -- (which is Marketing Leadership). Fallback: first team, in case the
+  -- holding team was renamed/deleted.
   select id into v_team
-    from public.teams where name = 'In attesa di assegnazione' limit 1;
+    from public.teams where name = 'Awaiting assignment' limit 1;
   if v_team is null then
     select id into v_team from public.teams order by created_at limit 1;
   end if;

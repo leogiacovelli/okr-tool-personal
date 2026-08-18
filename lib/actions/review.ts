@@ -13,10 +13,10 @@ import {
 import type { ActionResult } from "@/lib/types";
 
 /**
- * Azioni del REVIEWER (il manager del team del proprietario, secondo
- * l'organigramma). Chi ha diritto di agire lo decide il DATABASE:
- * RLS + trigger verificano che l'utente sia manager del team giusto —
- * chiunque altro riceve un errore, anche chiamando le azioni direttamente.
+ * REVIEWER actions (the manager of the owner's team, per the org chart).
+ * Who has the right to act is decided by the DATABASE: RLS + triggers
+ * check that the user is the manager of the right team — anyone else
+ * gets an error, even calling the actions directly.
  */
 
 async function setContext(setId: string) {
@@ -37,12 +37,12 @@ async function setContext(setId: string) {
     memberId: row.profile_id,
     periodId: row.period_id,
     periodLabel: row.period?.label ?? "",
-    memberName: row.owner?.full_name || row.owner?.email || "Membro",
+    memberName: row.owner?.full_name || row.owner?.email || "Member",
     memberEmail: row.owner?.email ?? null,
   };
 }
 
-/** Review: approva, oppure richiedi modifiche con feedback (generale e/o per obiettivo). */
+/** Review: approve, or request changes with feedback (general and/or per-objective). */
 export async function reviewSetAction(
   setId: string,
   decision: "approve" | "request_changes",
@@ -67,7 +67,7 @@ export async function reviewSetAction(
   ];
 
   if (decision === "request_changes" && comments.length === 0) {
-    return { error: "Aggiungi un commento: il membro deve sapere cosa modificare" };
+    return { error: "Add a comment: the member needs to know what to change" };
   }
 
   if (comments.length > 0) {
@@ -92,11 +92,11 @@ export async function reviewSetAction(
 }
 
 /**
- * Riapre un set già approvato riportandolo in "Modifiche richieste"
- * (approved → changes_requested). Serve quando gli obiettivi, già approvati e
- * presentati, vanno corretti più avanti (eliminarne uno, ribilanciare i pesi):
- * il proprietario torna a poterli modificare e dovrà reinviare per una nuova
- * approvazione. Il diritto di agire lo verifica comunque il trigger DB.
+ * Reopens an already-approved set, moving it back to "Changes requested"
+ * (approved → changes_requested). Used when objectives that were already
+ * approved and presented need to be fixed later (remove one, rebalance
+ * weights): the owner can edit them again and will need to resubmit for a
+ * new approval. The right to act is still checked by the DB trigger.
  */
 export async function reopenSetAction(setId: string, comment: string): Promise<ActionResult> {
   const manager = await getProfile();
@@ -123,7 +123,7 @@ export async function reopenSetAction(setId: string, comment: string): Promise<A
   return { ok: true };
 }
 
-/** Apre la fase di valutazione di fine semestre (approved → evaluation). */
+/** Opens the end-of-semester evaluation phase (approved → evaluation). */
 export async function startEvaluationAction(setId: string): Promise<ActionResult> {
   await getProfile();
   const supabase = await createClient();
@@ -142,9 +142,10 @@ export async function startEvaluationAction(setId: string): Promise<ActionResult
 }
 
 /**
- * Conferma la valutazione finale: salva Result e % confermata per ogni
- * obiettivo e chiude il semestre. L'OKR Result (media pesata) lo calcola
- * il trigger DB; qui lo riceviamo di ritorno per la notifica.
+ * Confirms the final evaluation: saves the Result and confirmed % for
+ * each objective and closes the semester. The OKR Result (weighted
+ * average) is computed by the DB trigger; we receive it back here for
+ * the notification.
  */
 export async function finalizeEvaluationAction(setId: string, items: unknown): Promise<ActionResult> {
   await getProfile();

@@ -1,56 +1,56 @@
 -- ============================================================================
--- OKR Tool — Migrazione iniziale
+-- OKR Tool — Initial migration
 --
--- Da eseguire su un progetto Supabase (SQL Editor oppure `supabase db push`).
+-- Run this on a Supabase project (SQL Editor or `supabase db push`).
 --
--- Principi di sicurezza applicati QUI, a livello di database:
---   1. Row Level Security attiva su ogni tabella: un membro non può MAI
---      leggere o scrivere righe che non gli appartengono, nemmeno con un
---      client API diretto che bypassa la UI.
---   2. La state machine (bozza → inviato → approvato → valutazione → chiuso)
---      è applicata da trigger BEFORE UPDATE: le transizioni illegali vengono
---      rifiutate dal DB, chiunque sia il chiamante.
---   3. La validazione "somma pesi = 100%" al submit e il calcolo dell'OKR
---      Result finale (media pesata) avvengono nel trigger, non nel client.
---   4. Audit log scritto da trigger/funzioni SECURITY DEFINER: l'app non può
---      dimenticarsi di loggare, e i membri non possono leggerlo/alterarlo.
+-- Security principles enforced HERE, at the database level:
+--   1. Row Level Security enabled on every table: a member can NEVER read
+--      or write rows that don't belong to them, even with a direct API
+--      client that bypasses the UI.
+--   2. The state machine (draft → submitted → approved → evaluation → closed)
+--      is enforced by BEFORE UPDATE triggers: illegal transitions are
+--      rejected by the DB, no matter who the caller is.
+--   3. The "weights sum to 100%" validation on submit and the final OKR
+--      Result calculation (weighted average) happen in the trigger, not
+--      in the client.
+--   4. Audit log written by SECURITY DEFINER triggers/functions: the app
+--      can't forget to log, and members can't read/alter it.
 --
--- Nota su auth.uid() IS NULL: le operazioni eseguite dal SQL Editor o con la
--- service_role key non hanno un utente autenticato. In quel caso i controlli
--- di IDENTITÀ vengono bypassati (serve per bootstrap/manutenzione), ma i
--- vincoli di INTEGRITÀ (pesi = 100, punteggi 0–120, calcolo finale) valgono
--- comunque.
+-- Note on auth.uid() IS NULL: operations run from the SQL Editor or with
+-- the service_role key have no authenticated user. In that case IDENTITY
+-- checks are bypassed (needed for bootstrap/maintenance), but INTEGRITY
+-- constraints (weights = 100, scores 0–120, final calculation) still apply.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- Tipi
+-- Types
 -- ---------------------------------------------------------------------------
 create type public.user_role as enum ('member', 'manager');
 
 create type public.okr_status as enum (
-  'draft',              -- Bozza: il membro sta definendo gli obiettivi
-  'submitted',          -- Inviato al manager per review
-  'changes_requested',  -- Il manager ha richiesto modifiche
-  'approved',           -- Obiettivi approvati e bloccati
-  'evaluation',         -- Fase di valutazione di fine semestre
-  'completed'           -- Valutato/chiuso: sola lettura, storico
+  'draft',              -- Draft: the member is defining their objectives
+  'submitted',          -- Sent to the manager for review
+  'changes_requested',  -- The manager requested changes
+  'approved',           -- Objectives approved and locked
+  'evaluation',         -- End-of-semester evaluation phase
+  'completed'           -- Evaluated/closed: read-only, historical
 );
 
 -- ---------------------------------------------------------------------------
--- Tabelle
+-- Tables
 -- ---------------------------------------------------------------------------
 
--- Un solo team ("Marketing") in v1, ma la tabella esiste da subito così
--- aggiungere team/manager multipli in futuro non richiede un redesign.
+-- Just one team ("Marketing") in v1, but the table exists from the start so
+-- adding multiple teams/managers later doesn't require a redesign.
 create table public.teams (
   id         uuid primary key default gen_random_uuid(),
   name       text not null unique,
   created_at timestamptz not null default now()
 );
 
--- Un profilo per ogni utente auth. Creato automaticamente dal trigger
--- on_auth_user_created. Il ruolo di default è 'member': il primo manager
--- si promuove via SQL (vedi README).
+-- One profile per auth user. Created automatically by the
+-- on_auth_user_created trigger. Default role is 'member': the first
+-- manager is promoted via SQL (see README).
 create table public.profiles (
   id         uuid primary key references auth.users (id) on delete cascade,
   team_id    uuid not null references public.teams (id),
@@ -60,7 +60,7 @@ create table public.profiles (
   created_at timestamptz not null default now()
 );
 
--- Semestri: "H1 2026", "H2 2026", ... Creati dal manager.
+-- Semesters: "H1 2026", "H2 2026", ... Created by the manager.
 create table public.periods (
   id         uuid primary key default gen_random_uuid(),
   team_id    uuid not null references public.teams (id),
@@ -72,47 +72,47 @@ create table public.periods (
   check (starts_on < ends_on)
 );
 
--- Il "set" di obiettivi di UN membro per UN semestre. Porta lo stato della
--- state machine e, a chiusura, l'OKR Result complessivo (media pesata).
+-- The objective "set" of ONE member for ONE semester. Carries the state
+-- machine's status and, once closed, the overall OKR Result (weighted average).
 create table public.okr_sets (
   id                  uuid primary key default gen_random_uuid(),
   profile_id          uuid not null references public.profiles (id) on delete cascade,
   period_id           uuid not null references public.periods (id),
   status              public.okr_status not null default 'draft',
-  final_score         numeric(6, 2),  -- OKR Result: calcolato dal trigger a chiusura
+  final_score         numeric(6, 2),  -- OKR Result: computed by the trigger on closing
   submitted_at        timestamptz,
   approved_at         timestamptz,
-  results_proposed_at timestamptz,    -- quando il membro ha proposto i risultati
+  results_proposed_at timestamptz,    -- when the member proposed their results
   completed_at        timestamptz,
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now(),
-  unique (profile_id, period_id)      -- un solo set per membro per semestre
+  unique (profile_id, period_id)      -- only one set per member per semester
 );
 
--- I singoli obiettivi (Objective + Key Result) di un set.
--- Target/Result sono testo libero (es. "CPA < 140€"): il tipo metrica è un
--- campo libero e la % di raggiungimento può essere decisa manualmente.
+-- The individual objectives (Objective + Key Result) of a set.
+-- Target/Result are free text (e.g. "CPA < $140"): the metric type is a
+-- free-form field and the % achieved can be decided manually.
 create table public.objectives (
   id                 uuid primary key default gen_random_uuid(),
   set_id             uuid not null references public.okr_sets (id) on delete cascade,
   position           int  not null default 0,
-  objective          text not null,                 -- es. "[Stellantis B2C] Growth - Quality target"
-  key_result         text not null,                 -- es. "Lead Scoring"
-  smart_requirements text not null default '',      -- SMART / requisiti di completamento
-  starting_point     text not null default '',      -- valore di partenza
-  target_outcome     text not null default '',      -- es. "Lead scoring 55 pts", "CPA < 140€"
-  metric_type        text not null default '',      -- unità/tipo metrica, testo libero
+  objective          text not null,                 -- e.g. "[Product Line] Growth - Quality target"
+  key_result         text not null,                 -- e.g. "Lead Scoring"
+  smart_requirements text not null default '',      -- SMART / completion requirements
+  starting_point     text not null default '',      -- starting value
+  target_outcome     text not null default '',      -- e.g. "Lead scoring 55 pts", "CPA < $140"
+  metric_type        text not null default '',      -- unit/metric type, free text
   weight             numeric(5, 2) not null check (weight > 0 and weight <= 100),
-  result_value       text,                          -- Result effettivo a fine semestre
-  result_note        text,                          -- nota di contesto sul risultato
-  proposed_score     numeric(5, 2) check (proposed_score >= 0 and proposed_score <= 120), -- % proposta dal membro
-  final_score        numeric(5, 2) check (final_score  >= 0 and final_score  <= 120),     -- % confermata dal manager
+  result_value       text,                          -- actual result at end of semester
+  result_note        text,                          -- context note on the result
+  proposed_score     numeric(5, 2) check (proposed_score >= 0 and proposed_score <= 120), -- % proposed by the member
+  final_score        numeric(5, 2) check (final_score  >= 0 and final_score  <= 120),     -- % confirmed by the manager
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now()
 );
 
--- Feedback del manager (e note del membro): generale sul set
--- (objective_id NULL) o su un singolo obiettivo.
+-- Manager feedback (and member notes): general on the set
+-- (objective_id NULL) or on a single objective.
 create table public.review_comments (
   id           uuid primary key default gen_random_uuid(),
   set_id       uuid not null references public.okr_sets (id) on delete cascade,
@@ -122,8 +122,8 @@ create table public.review_comments (
   created_at   timestamptz not null default now()
 );
 
--- Audit log minimale: chi ha fatto cosa, quando. Scritto SOLO da funzioni
--- SECURITY DEFINER (trigger e RPC), leggibile SOLO dal manager.
+-- Minimal audit log: who did what, when. Written ONLY by SECURITY DEFINER
+-- functions (triggers and RPCs), readable ONLY by the manager.
 create table public.audit_log (
   id         bigint generated always as identity primary key,
   actor_id   uuid,
@@ -139,11 +139,11 @@ create index review_comments_set_id_idx on public.review_comments (set_id);
 create index audit_log_set_id_idx       on public.audit_log (set_id);
 
 -- ---------------------------------------------------------------------------
--- Funzioni helper (SECURITY DEFINER: bypassano RLS per evitare ricorsione
--- nelle policy; search_path fissato per sicurezza)
+-- Helper functions (SECURITY DEFINER: bypass RLS to avoid recursion in
+-- policies; search_path fixed for security)
 -- ---------------------------------------------------------------------------
 
--- L'utente corrente è il manager?
+-- Is the current user the manager?
 create or replace function public.is_manager()
 returns boolean
 language sql stable security definer set search_path = public
@@ -154,7 +154,7 @@ as $$
   );
 $$;
 
--- Team dell'utente corrente (per policy senza ricorsione su profiles).
+-- Current user's team (for policies without recursion on profiles).
 create or replace function public.my_team_id()
 returns uuid
 language sql stable security definer set search_path = public
@@ -162,7 +162,7 @@ as $$
   select team_id from public.profiles where id = auth.uid();
 $$;
 
--- Scrittura audit log (definer: i client normali non hanno INSERT su audit_log).
+-- Audit log writer (definer: normal clients have no INSERT on audit_log).
 create or replace function public.log_audit(p_action text, p_set uuid, p_details jsonb default '{}'::jsonb)
 returns void
 language sql security definer set search_path = public
@@ -172,7 +172,7 @@ as $$
 $$;
 
 -- ---------------------------------------------------------------------------
--- Trigger: profilo automatico alla creazione dell'utente auth
+-- Trigger: automatic profile on auth user creation
 -- ---------------------------------------------------------------------------
 create or replace function public.handle_new_user()
 returns trigger
@@ -182,7 +182,7 @@ begin
   insert into public.profiles (id, team_id, full_name, email)
   values (
     new.id,
-    (select id from public.teams order by created_at limit 1),  -- unico team in v1
+    (select id from public.teams order by created_at limit 1),  -- only team in v1
     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
     coalesce(new.email, '')
   );
@@ -195,7 +195,7 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- ---------------------------------------------------------------------------
--- Trigger: updated_at automatico
+-- Trigger: automatic updated_at
 -- ---------------------------------------------------------------------------
 create or replace function public.tg_set_updated_at()
 returns trigger
@@ -211,18 +211,18 @@ create trigger okr_sets_updated_at   before update on public.okr_sets   for each
 create trigger objectives_updated_at before update on public.objectives for each row execute function public.tg_set_updated_at();
 
 -- ---------------------------------------------------------------------------
--- Trigger: protezione campi sensibili su profiles
--- (un membro può aggiornare solo il proprio full_name; ruolo/team/email no)
+-- Trigger: protection of sensitive fields on profiles
+-- (a member can only update their own full_name; role/team/email are locked)
 -- ---------------------------------------------------------------------------
 create or replace function public.tg_profiles_guard()
 returns trigger
 language plpgsql security definer set search_path = public
 as $$
 begin
-  -- auth.uid() IS NULL = SQL Editor / service_role: consentito (bootstrap manager)
+  -- auth.uid() IS NULL = SQL Editor / service_role: allowed (manager bootstrap)
   if auth.uid() is not null and not public.is_manager() then
     if new.role <> old.role or new.team_id <> old.team_id or new.email <> old.email then
-      raise exception 'Solo il manager può modificare ruolo, team o email di un profilo';
+      raise exception 'Only the manager can change a profile''s role, team, or email';
     end if;
   end if;
   return new;
@@ -233,16 +233,16 @@ create trigger profiles_guard before update on public.profiles
   for each row execute function public.tg_profiles_guard();
 
 -- ---------------------------------------------------------------------------
--- Trigger: STATE MACHINE su okr_sets
+-- Trigger: STATE MACHINE on okr_sets
 --
--- Transizioni consentite (e da chi):
---   draft             → submitted   (membro proprietario; pesi = 100%)
---   changes_requested → submitted   (membro proprietario; pesi = 100%)
+-- Allowed transitions (and who can make them):
+--   draft             → submitted   (owning member; weights = 100%)
+--   changes_requested → submitted   (owning member; weights = 100%)
 --   submitted         → approved    (manager)
 --   submitted         → changes_requested (manager)
---   approved          → evaluation  (manager, apre la valutazione di fine semestre)
---   evaluation        → completed   (manager; tutte le % confermate → calcola OKR Result)
--- Qualsiasi altra transizione viene rifiutata.
+--   approved          → evaluation  (manager, opens the end-of-semester evaluation)
+--   evaluation        → completed   (manager; all % confirmed → computes OKR Result)
+-- Any other transition is rejected.
 -- ---------------------------------------------------------------------------
 create or replace function public.tg_okr_sets_transition()
 returns trigger
@@ -261,30 +261,30 @@ begin
   v_is_owner := v_bypass or (v_actor = old.profile_id);
   v_is_mgr   := v_bypass or public.is_manager();
 
-  -- Campi mai modificabili direttamente dai client: vengono ripristinati e
-  -- poi assegnati solo dal ramo di transizione pertinente.
+  -- Fields never directly editable by clients: reset here and then set
+  -- only by the relevant transition branch.
   if new.profile_id <> old.profile_id or new.period_id <> old.period_id then
-    raise exception 'Proprietario e periodo di un set OKR non sono modificabili';
+    raise exception 'The owner and period of an OKR set cannot be changed';
   end if;
 
-  -- Aggiornamenti senza cambio di stato -------------------------------------
+  -- Updates without a status change ------------------------------------
   if new.status = old.status then
     if new.final_score  is distinct from old.final_score
        or new.submitted_at is distinct from old.submitted_at
        or new.approved_at  is distinct from old.approved_at
        or new.completed_at is distinct from old.completed_at then
-      raise exception 'Questi campi sono gestiti automaticamente dal sistema';
+      raise exception 'These fields are managed automatically by the system';
     end if;
-    -- Il membro può marcare "risultati proposti" solo in fase di valutazione
+    -- The member can only mark "results proposed" during the evaluation phase
     if new.results_proposed_at is distinct from old.results_proposed_at
        and not (v_is_owner and old.status = 'evaluation') then
-      raise exception 'La proposta dei risultati è consentita solo in fase di valutazione';
+      raise exception 'Proposing results is only allowed during the evaluation phase';
     end if;
     return new;
   end if;
 
-  -- Transizioni di stato -----------------------------------------------------
-  -- Ripristina i campi protetti: solo il ramo giusto li imposta.
+  -- State transitions -----------------------------------------------------
+  -- Reset protected fields: only the right branch sets them.
   new.final_score         := old.final_score;
   new.submitted_at        := old.submitted_at;
   new.approved_at         := old.approved_at;
@@ -293,38 +293,38 @@ begin
 
   if old.status in ('draft', 'changes_requested') and new.status = 'submitted' then
     if not v_is_owner then
-      raise exception 'Solo il proprietario può inviare i propri obiettivi';
+      raise exception 'Only the owner can submit their own objectives';
     end if;
     select count(*), coalesce(sum(weight), 0)
       into v_count, v_weight_sum
       from public.objectives where set_id = old.id;
     if v_count = 0 then
-      raise exception 'Aggiungi almeno un obiettivo prima di inviare';
+      raise exception 'Add at least one objective before submitting';
     end if;
-    -- Validazione bloccante richiesta dalla spec: somma pesi = 100%
+    -- Blocking validation required by the spec: weights sum to 100%
     if round(v_weight_sum, 2) <> 100.00 then
-      raise exception 'La somma dei pesi deve essere il 100%% (attuale: % %%)', round(v_weight_sum, 2);
+      raise exception 'The sum of the weights must be 100%% (current: % %%)', round(v_weight_sum, 2);
     end if;
     new.submitted_at := now();
 
   elsif old.status = 'submitted' and new.status = 'approved' then
-    if not v_is_mgr then raise exception 'Solo il manager può approvare'; end if;
+    if not v_is_mgr then raise exception 'Only the manager can approve'; end if;
     new.approved_at := now();
 
   elsif old.status = 'submitted' and new.status = 'changes_requested' then
-    if not v_is_mgr then raise exception 'Solo il manager può richiedere modifiche'; end if;
+    if not v_is_mgr then raise exception 'Only the manager can request changes'; end if;
 
   elsif old.status = 'approved' and new.status = 'evaluation' then
-    if not v_is_mgr then raise exception 'Solo il manager può aprire la fase di valutazione'; end if;
+    if not v_is_mgr then raise exception 'Only the manager can open the evaluation phase'; end if;
 
   elsif old.status = 'evaluation' and new.status = 'completed' then
-    if not v_is_mgr then raise exception 'Solo il manager può confermare la valutazione finale'; end if;
+    if not v_is_mgr then raise exception 'Only the manager can confirm the final evaluation'; end if;
     select count(*) into v_missing
       from public.objectives where set_id = old.id and final_score is null;
     if v_missing > 0 then
-      raise exception 'Tutti gli obiettivi devono avere una %% confermata prima di chiudere il semestre';
+      raise exception 'Every objective must have a confirmed %% before closing the semester';
     end if;
-    -- OKR Result = media pesata delle % confermate (i pesi sommano a 100)
+    -- OKR Result = weighted average of the confirmed % (weights sum to 100)
     select round(sum(weight * final_score) / nullif(sum(weight), 0), 2)
       into v_score
       from public.objectives where set_id = old.id;
@@ -332,7 +332,7 @@ begin
     new.completed_at := now();
 
   else
-    raise exception 'Transizione di stato non consentita: % → %', old.status, new.status;
+    raise exception 'State transition not allowed: % → %', old.status, new.status;
   end if;
 
   return new;
@@ -343,15 +343,15 @@ create trigger okr_sets_transition before update on public.okr_sets
   for each row execute function public.tg_okr_sets_transition();
 
 -- ---------------------------------------------------------------------------
--- Trigger: chi può toccare QUALI campi degli obiettivi, in quale stato
+-- Trigger: who can touch WHICH objective fields, in which state
 --
---   membro, set in draft/changes_requested → campi di definizione
---                                            (punteggi/risultati vietati)
---   membro, set in evaluation              → solo result_value, result_note,
+--   member, set in draft/changes_requested → definition fields
+--                                            (scores/results forbidden)
+--   member, set in evaluation              → only result_value, result_note,
 --                                            proposed_score
---   manager, set in evaluation             → solo result_value, result_note,
---                                            final_score (correzione/conferma)
---   qualsiasi altro caso                   → rifiutato
+--   manager, set in evaluation             → only result_value, result_note,
+--                                            final_score (correction/confirmation)
+--   any other case                         → rejected
 -- ---------------------------------------------------------------------------
 create or replace function public.tg_objectives_guard()
 returns trigger
@@ -364,8 +364,8 @@ declare
   v_is_owner boolean;
   v_is_mgr   boolean;
 begin
-  -- Operazioni di sistema (SQL Editor, service_role, cascate da eliminazione
-  -- utente): nessun controllo di permesso. I vincoli CHECK restano attivi.
+  -- System operations (SQL Editor, service_role, cascades from user
+  -- deletion): no permission checks. CHECK constraints remain active.
   if v_actor is null then
     if tg_op = 'DELETE' then return old; end if;
     return new;
@@ -376,7 +376,7 @@ begin
    where s.id = coalesce(new.set_id, old.set_id);
 
   if v_status is null then
-    raise exception 'Set OKR inesistente';
+    raise exception 'OKR set does not exist';
   end if;
 
   v_is_owner := (v_actor = v_owner);
@@ -386,23 +386,23 @@ begin
     if v_is_owner and v_status in ('draft', 'changes_requested') then
       if new.result_value is not null or new.result_note is not null
          or new.proposed_score is not null or new.final_score is not null then
-        raise exception 'Risultati e punteggi non si impostano in fase di definizione';
+        raise exception 'Results and scores cannot be set during the definition phase';
       end if;
       return new;
     end if;
-    raise exception 'Non puoi aggiungere obiettivi in questo stato';
+    raise exception 'You cannot add objectives in this state';
   end if;
 
   if tg_op = 'DELETE' then
     if v_is_owner and v_status in ('draft', 'changes_requested') then
       return old;
     end if;
-    raise exception 'Non puoi eliminare obiettivi in questo stato';
+    raise exception 'You cannot delete objectives in this state';
   end if;
 
   -- UPDATE
   if new.set_id <> old.set_id then
-    raise exception 'Un obiettivo non può cambiare set';
+    raise exception 'An objective cannot change set';
   end if;
 
   if v_is_owner and v_status in ('draft', 'changes_requested') then
@@ -410,39 +410,39 @@ begin
        or new.result_note is distinct from old.result_note
        or new.proposed_score is distinct from old.proposed_score
        or new.final_score is distinct from old.final_score then
-      raise exception 'Risultati e punteggi non si modificano in fase di definizione';
+      raise exception 'Results and scores cannot be changed during the definition phase';
     end if;
     return new;
   end if;
 
   if v_status = 'evaluation' then
-    -- I campi di DEFINIZIONE sono bloccati per tutti dopo l'approvazione.
+    -- DEFINITION fields are locked for everyone after approval.
     if row(new.objective, new.key_result, new.smart_requirements, new.starting_point,
            new.target_outcome, new.metric_type, new.weight, new.position)
        is distinct from
        row(old.objective, old.key_result, old.smart_requirements, old.starting_point,
            old.target_outcome, old.metric_type, old.weight, old.position) then
-      raise exception 'In fase di valutazione gli obiettivi non si modificano: solo risultati e %%';
+      raise exception 'Objectives cannot be edited during evaluation: only results and %%';
     end if;
 
-    -- Manager: conferma/correzione (final_score); la proposta del membro resta intatta.
+    -- Manager: confirmation/correction (final_score); the member's proposal stays intact.
     if v_is_mgr then
       if new.proposed_score is distinct from old.proposed_score and not v_is_owner then
-        raise exception 'La %% proposta dal membro non è modificabile dal manager';
+        raise exception 'The %% proposed by the member cannot be changed by the manager';
       end if;
       return new;
     end if;
 
-    -- Membro: solo proposta (mai il punteggio confermato).
+    -- Member: proposal only (never the confirmed score).
     if v_is_owner then
       if new.final_score is distinct from old.final_score then
-        raise exception 'La %% confermata è riservata al manager';
+        raise exception 'The confirmed %% is reserved to the manager';
       end if;
       return new;
     end if;
   end if;
 
-  raise exception 'Modifica non consentita in questo stato';
+  raise exception 'Change not allowed in this state';
 end;
 $$;
 
@@ -450,7 +450,7 @@ create trigger objectives_guard before insert or update or delete on public.obje
   for each row execute function public.tg_objectives_guard();
 
 -- ---------------------------------------------------------------------------
--- Trigger: AUDIT automatico (non dipende dalla buona volontà dell'app)
+-- Trigger: automatic AUDIT (doesn't depend on the app remembering to log)
 -- ---------------------------------------------------------------------------
 create or replace function public.tg_audit_set_status()
 returns trigger
@@ -497,17 +497,17 @@ alter table public.objectives      enable row level security;
 alter table public.review_comments enable row level security;
 alter table public.audit_log       enable row level security;
 
--- teams: tutti gli utenti autenticati vedono il proprio contesto team.
--- Nessuna policy di scrittura: si gestisce via SQL/service_role.
+-- teams: all authenticated users see their own team context.
+-- No write policy: managed via SQL/service_role.
 create policy teams_select on public.teams
   for select to authenticated
   using (true);
 
 -- profiles:
---   SELECT: il proprio profilo; il manager vede tutti; i membri vedono anche
---           il profilo del manager del proprio team (serve per mostrare
---           l'autore dei feedback e inviare le notifiche email).
---           I membri NON vedono i profili degli altri membri.
+--   SELECT: your own profile; the manager sees everyone; members also see
+--           their own team's manager profile (needed to show feedback
+--           authors and send email notifications).
+--           Members do NOT see other members' profiles.
 create policy profiles_select on public.profiles
   for select to authenticated
   using (
@@ -516,17 +516,17 @@ create policy profiles_select on public.profiles
     or (role = 'manager' and team_id = public.my_team_id())
   );
 
---   UPDATE: solo il proprio profilo (il trigger profiles_guard impedisce ai
---           membri di cambiare ruolo/team/email: di fatto solo full_name).
+--   UPDATE: only your own profile (the profiles_guard trigger prevents
+--           members from changing role/team/email: effectively only full_name).
 create policy profiles_update on public.profiles
   for update to authenticated
   using (id = auth.uid())
   with check (id = auth.uid());
 
--- Nessuna policy INSERT/DELETE su profiles: creazione via trigger
--- handle_new_user (definer), cancellazione via cascade da auth.users.
+-- No INSERT/DELETE policy on profiles: created via the handle_new_user
+-- trigger (definer), deleted via cascade from auth.users.
 
--- periods: visibili a tutti gli autenticati; scrittura solo manager.
+-- periods: visible to all authenticated users; write access manager only.
 create policy periods_select on public.periods
   for select to authenticated
   using (true);
@@ -540,31 +540,31 @@ create policy periods_update on public.periods
   using (public.is_manager())
   with check (public.is_manager());
 
--- okr_sets: IL punto critico dell'isolamento dati.
---   SELECT: il membro vede SOLO i propri set; il manager vede tutti.
+-- okr_sets: THE critical point of data isolation.
+--   SELECT: a member sees ONLY their own sets; the manager sees everyone's.
 create policy okr_sets_select on public.okr_sets
   for select to authenticated
   using (profile_id = auth.uid() or public.is_manager());
 
---   INSERT: solo per sé stessi, solo in stato draft.
+--   INSERT: only for yourself, only in draft status.
 create policy okr_sets_insert on public.okr_sets
   for insert to authenticated
   with check (profile_id = auth.uid() and status = 'draft');
 
---   UPDATE: proprietario o manager; il trigger okr_sets_transition applica
---           la state machine (chi può fare quale transizione, quando).
+--   UPDATE: owner or manager; the okr_sets_transition trigger enforces
+--           the state machine (who can make which transition, when).
 create policy okr_sets_update on public.okr_sets
   for update to authenticated
   using (profile_id = auth.uid() or public.is_manager())
   with check (profile_id = auth.uid() or public.is_manager());
 
---   DELETE: solo il proprietario, solo una bozza mai inviata.
+--   DELETE: owner only, only a draft that was never submitted.
 create policy okr_sets_delete on public.okr_sets
   for delete to authenticated
   using (profile_id = auth.uid() and status = 'draft');
 
--- objectives: visibilità/scrittura derivata dal set padre.
---   SELECT: proprietario del set o manager.
+-- objectives: visibility/write access derived from the parent set.
+--   SELECT: the set's owner or the manager.
 create policy objectives_select on public.objectives
   for select to authenticated
   using (
@@ -575,8 +575,8 @@ create policy objectives_select on public.objectives
     )
   );
 
---   INSERT/DELETE: solo il proprietario del set (lo stato giusto è
---   verificato dal trigger objectives_guard).
+--   INSERT/DELETE: only the set's owner (the correct state is checked by
+--   the objectives_guard trigger).
 create policy objectives_insert on public.objectives
   for insert to authenticated
   with check (
@@ -589,7 +589,7 @@ create policy objectives_delete on public.objectives
     exists (select 1 from public.okr_sets s where s.id = set_id and s.profile_id = auth.uid())
   );
 
---   UPDATE: proprietario o manager (i campi ammessi li decide il trigger).
+--   UPDATE: owner or manager (the trigger decides which fields are allowed).
 create policy objectives_update on public.objectives
   for update to authenticated
   using (
@@ -608,7 +608,7 @@ create policy objectives_update on public.objectives
   );
 
 -- review_comments:
---   SELECT: manager o proprietario del set commentato.
+--   SELECT: manager, or the owner of the commented-on set.
 create policy review_comments_select on public.review_comments
   for select to authenticated
   using (
@@ -616,7 +616,7 @@ create policy review_comments_select on public.review_comments
     or exists (select 1 from public.okr_sets s where s.id = set_id and s.profile_id = auth.uid())
   );
 
---   INSERT: come sé stessi; manager su qualsiasi set, membro solo sui propri.
+--   INSERT: as yourself; manager on any set, member only on their own.
 create policy review_comments_insert on public.review_comments
   for insert to authenticated
   with check (
@@ -627,22 +627,21 @@ create policy review_comments_insert on public.review_comments
     )
   );
 
--- Nessun UPDATE/DELETE sui commenti: restano come traccia.
+-- No UPDATE/DELETE on comments: they stay as a record.
 
--- audit_log: sola lettura per il manager; scrittura solo via log_audit (definer).
+-- audit_log: read-only for the manager; written only via log_audit (definer).
 create policy audit_log_select on public.audit_log
   for select to authenticated
   using (public.is_manager());
 
 -- ---------------------------------------------------------------------------
--- RPC (SECURITY INVOKER: RLS e trigger si applicano al chiamante; il valore
--- aggiunto è l'atomicità — tutto in una transazione)
+-- RPC (SECURITY INVOKER: RLS and triggers apply to the caller; the added
+-- value here is atomicity — everything in one transaction)
 -- ---------------------------------------------------------------------------
 
--- Salva la bozza sovrascrivendo la versione precedente (come da spec:
--- nessuno storico versioni, solo l'ultima; l'audit log tiene traccia
--- di submit/review). Consentito solo su set propri in draft/changes_requested
--- (RLS + trigger).
+-- Saves the draft, overwriting the previous version (per spec: no version
+-- history, only the latest; the audit log tracks submit/review). Only
+-- allowed on your own sets in draft/changes_requested (RLS + trigger).
 create or replace function public.save_objectives(p_set_id uuid, p_objectives jsonb)
 returns void
 language plpgsql security invoker set search_path = public
@@ -652,7 +651,7 @@ declare
   v_pos int := 0;
 begin
   if jsonb_array_length(p_objectives) > 20 then
-    raise exception 'Massimo 20 obiettivi per semestre';
+    raise exception 'Maximum 20 objectives per semester';
   end if;
 
   delete from public.objectives where set_id = p_set_id;
@@ -675,7 +674,7 @@ begin
 end;
 $$;
 
--- Il membro propone i risultati di fine semestre (Result + % 0–120 + nota).
+-- The member proposes their end-of-semester results (Result + % 0–120 + note).
 create or replace function public.propose_results(p_set_id uuid, p_results jsonb)
 returns void
 language plpgsql security invoker set search_path = public
@@ -698,8 +697,9 @@ begin
 end;
 $$;
 
--- Il manager conferma/corregge Result e % per ogni obiettivo e chiude il
--- semestre: il trigger calcola l'OKR Result (media pesata) e lo restituisce.
+-- The manager confirms/corrects the Result and % for each objective and
+-- closes the semester: the trigger computes the OKR Result (weighted
+-- average) and returns it.
 create or replace function public.finalize_evaluation(p_set_id uuid, p_scores jsonb)
 returns numeric
 language plpgsql security invoker set search_path = public
@@ -727,7 +727,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Seed: unico team v1 + semestre corrente
+-- Seed: only v1 team + current semester
 -- ---------------------------------------------------------------------------
 insert into public.teams (name) values ('Marketing');
 

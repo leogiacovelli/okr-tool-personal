@@ -13,9 +13,9 @@ const smallBtn =
   "rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800";
 
 /**
- * Membri (solo admin): vista gerarchica per team — i team padre in alto,
- * i figli sotto e rientrati, come nell'organigramma. Da qui si spostano
- * le persone tra team e si assegnano i ruoli globali.
+ * Members (admin only): hierarchical view by team — parent teams on top,
+ * children below and indented, like in the org chart. From here people
+ * are moved between teams and assigned global roles.
  */
 export default async function MembersPage({
   searchParams,
@@ -33,7 +33,7 @@ export default async function MembersPage({
   const profiles = (data ?? []) as Profile[];
   const teams = (teamsData ?? []) as Team[];
 
-  // Profondità nell'albero: i padri prima dei figli, con rientro.
+  // Depth in the tree: parents before children, indented.
   const depth = (t: Team): number => {
     let d = 0;
     let cur: Team | undefined = t;
@@ -58,10 +58,10 @@ export default async function MembersPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Membri</h1>
+        <h1 className="text-2xl font-semibold">Members</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Le persone, organizzate secondo l&rsquo;organigramma. La struttura dei team si modifica
-          dalla pagina «Organigramma».
+          People, organized according to the org chart. The team structure is edited
+          from the "Org Chart" page.
         </p>
       </div>
 
@@ -72,7 +72,7 @@ export default async function MembersPage({
       )}
       {ok && (
         <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-          {ok === "role" ? "Ruolo aggiornato." : ok === "team" ? "Team aggiornato." : "Invito inviato."}
+          {ok === "role" ? "Role updated." : ok === "team" ? "Team updated." : "Invite sent."}
         </p>
       )}
 
@@ -81,16 +81,16 @@ export default async function MembersPage({
         className="grid gap-4 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900 sm:grid-cols-3"
       >
         <div>
-          <label className={label}>Nome e cognome</label>
-          <input className={input} name="full_name" required placeholder="es. Giulia Rossi" />
+          <label className={label}>Full name</label>
+          <input className={input} name="full_name" required placeholder="e.g. Jane Doe" />
         </div>
         <div>
           <label className={label}>Email</label>
-          <input className={input} name="email" type="email" required placeholder="email@azienda.it" />
+          <input className={input} name="email" type="email" required placeholder="email@company.com" />
         </div>
         <div className="flex items-end">
           <button className="w-full rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white">
-            Invita membro
+            Invite member
           </button>
         </div>
       </form>
@@ -102,18 +102,18 @@ export default async function MembersPage({
             <h2 className="font-semibold">{team.name}</h2>
             <span className="text-xs text-zinc-500 dark:text-zinc-400">
               manager: {personName(team.manager_id)} · {people.length}{" "}
-              {people.length === 1 ? "persona" : "persone"}
+              {people.length === 1 ? "person" : "people"}
             </span>
           </div>
           <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
             <table className="w-full bg-white text-sm dark:bg-zinc-900">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  <th className="px-4 py-3 font-medium">Nome</th>
+                  <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Team</th>
-                  <th className="px-4 py-3 font-medium">Ruolo</th>
-                  <th className="px-4 py-3 font-medium">Creato</th>
+                  <th className="px-4 py-3 font-medium">Role</th>
+                  <th className="px-4 py-3 font-medium">Created</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,7 +123,7 @@ export default async function MembersPage({
                       {p.full_name || "—"}
                       {team.manager_id === p.id && (
                         <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                          Manager del team
+                          Team manager
                         </span>
                       )}
                     </td>
@@ -138,24 +138,24 @@ export default async function MembersPage({
                             </option>
                           ))}
                         </select>
-                        <button className={smallBtn}>Salva</button>
+                        <button className={smallBtn}>Save</button>
                       </form>
                     </td>
                     <td className="px-4 py-3">
                       {p.id === me.id ? (
-                        // Il proprio ruolo non si cambia da qui (protezione anti-lockout)
+                        // Your own role can't be changed from here (anti-lockout protection)
                         <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white dark:bg-zinc-100 dark:text-zinc-900">
-                          Admin (tu)
+                          Admin (you)
                         </span>
                       ) : (
                         <form action={updateRoleAction} className="flex items-center gap-2">
                           <input type="hidden" name="profile_id" value={p.id} />
                           <select name="role" defaultValue={p.role} className={select}>
-                            <option value="member">Membro</option>
-                            <option value="viewer">Osservatore</option>
+                            <option value="member">Member</option>
+                            <option value="viewer">Viewer</option>
                             <option value="manager">Admin</option>
                           </select>
-                          <button className={smallBtn}>Salva</button>
+                          <button className={smallBtn}>Save</button>
                         </form>
                       )}
                     </td>

@@ -54,7 +54,7 @@ export default function ProposeResultsForm({
         setMsg({ kind: "err", text: res.error });
         return;
       }
-      setMsg({ kind: "ok", text: "Proposta inviata al manager." });
+      setMsg({ kind: "ok", text: "Proposal sent to your manager." });
       router.refresh();
     });
   }
@@ -63,8 +63,8 @@ export default function ProposeResultsForm({
     <div className="space-y-4">
       {alreadyProposedAt && (
         <p className="rounded-lg bg-violet-50 p-3 text-sm text-violet-800 dark:bg-violet-950 dark:text-violet-300">
-          Hai già inviato una proposta. Puoi aggiornarla finché il manager non conferma la
-          valutazione finale.
+          You've already submitted a proposal. You can update it until your manager confirms the
+          final evaluation.
         </p>
       )}
 
@@ -74,7 +74,7 @@ export default function ProposeResultsForm({
           className="rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900"
         >
           <div className="mb-3">
-            <p className="text-xs font-semibold text-zinc-400">Obiettivo {i + 1} · peso {o.weight}%</p>
+            <p className="text-xs font-semibold text-zinc-400">Objective {i + 1} · weight {o.weight}%</p>
             <h3 className="font-semibold">{o.objective}</h3>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
               KR: {o.key_result}
@@ -84,16 +84,16 @@ export default function ProposeResultsForm({
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="sm:col-span-2">
-              <label className={label}>Result raggiunto</label>
+              <label className={label}>Result achieved</label>
               <input
                 className={input}
                 value={rows[o.id].result_value}
                 onChange={(e) => update(o.id, { result_value: e.target.value })}
-                placeholder="es. CPA 132€ / Lead scoring 58 pts"
+                placeholder="e.g. CPA $132 / Lead scoring 58 pts"
               />
             </div>
             <div>
-              <label className={label}>% di raggiungimento (0–120)</label>
+              <label className={label}>% achieved (0–120)</label>
               <input
                 className={input}
                 type="number"
@@ -102,16 +102,16 @@ export default function ProposeResultsForm({
                 step={0.5}
                 value={rows[o.id].proposed_score}
                 onChange={(e) => update(o.id, { proposed_score: e.target.value })}
-                placeholder="es. 100"
+                placeholder="e.g. 100"
               />
             </div>
             <div className="sm:col-span-3">
-              <label className={label}>Nota di contesto (opzionale)</label>
+              <label className={label}>Context note (optional)</label>
               <textarea
                 className={`${input} min-h-16`}
                 value={rows[o.id].result_note}
                 onChange={(e) => update(o.id, { result_note: e.target.value })}
-                placeholder="Contesto utile alla valutazione"
+                placeholder="Context useful for the evaluation"
               />
             </div>
           </div>
@@ -132,7 +132,7 @@ export default function ProposeResultsForm({
           onClick={send}
           className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
         >
-          {alreadyProposedAt ? "Aggiorna proposta" : "Invia proposta risultati"}
+          {alreadyProposedAt ? "Update proposal" : "Submit results proposal"}
         </button>
       </div>
     </div>

@@ -1,9 +1,9 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Client con service_role key: BYPASSA la RLS. Usato esclusivamente
- * lato server per invitare nuovi membri (auth admin API), mai esposto
- * al browser. Ritorna null se la chiave non è configurata.
+ * Client using the service_role key: BYPASSES RLS. Used exclusively
+ * server-side to invite new members (auth admin API), never exposed
+ * to the browser. Returns null if the key isn't configured.
  */
 export function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

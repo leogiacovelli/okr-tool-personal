@@ -13,7 +13,7 @@ export default function CommentsList({
   const titleFor = (objectiveId: string | null) => {
     if (!objectiveId) return null;
     const idx = objectives.findIndex((o) => o.id === objectiveId);
-    return idx >= 0 ? `Obiettivo ${idx + 1}: ${objectives[idx].objective}` : "Obiettivo rimosso";
+    return idx >= 0 ? `Objective ${idx + 1}: ${objectives[idx].objective}` : "Objective removed";
   };
 
   return (

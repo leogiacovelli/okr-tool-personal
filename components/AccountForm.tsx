@@ -54,9 +54,9 @@ export default function AccountForm({
     }
 
     setPassword("");
-    setMsg({ kind: "ok", text: "Profilo aggiornato." });
+    setMsg({ kind: "ok", text: "Profile updated." });
     setPending(false);
-    router.refresh(); // aggiorna anche il nome nella testata
+    router.refresh(); // also refreshes the name in the header
   }
 
   return (
@@ -65,18 +65,18 @@ export default function AccountForm({
       className="max-w-md space-y-4 rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
     >
       <div>
-        <label className={label}>Nome e cognome</label>
+        <label className={label}>Full name</label>
         <input className={input} value={name} onChange={(e) => setName(e.target.value)} required />
       </div>
       <div>
-        <label className={label}>Nuova password (lascia vuoto per non cambiarla)</label>
+        <label className={label}>New password (leave empty to keep it unchanged)</label>
         <input
           className={input}
           type="password"
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={`Min. ${PASSWORD_MIN_LENGTH} caratteri: maiuscole, minuscole, numeri e simboli`}
+          placeholder={`Min. ${PASSWORD_MIN_LENGTH} characters: uppercase, lowercase, numbers and symbols`}
         />
       </div>
       <div className="flex items-center gap-3">
@@ -85,7 +85,7 @@ export default function AccountForm({
           disabled={pending}
           className="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
         >
-          Salva
+          Save
         </button>
         {msg && (
           <p

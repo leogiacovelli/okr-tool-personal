@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 
-/** Profilo dell'utente autenticato; redirect a /login se assente. */
+/** Authenticated user's profile; redirects to /login if absent. */
 export async function getProfile(): Promise<Profile> {
   const supabase = await createClient();
   const {
@@ -23,9 +23,9 @@ export async function getProfile(): Promise<Profile> {
 }
 
 /**
- * Richiede il ruolo ADMIN (valore storico 'manager' su profiles): amministra
- * periodi, account, ruoli e organigramma. NON dà diritti di approvazione:
- * quelli derivano dall'essere manager di un team (vedi requireTeamAccess).
+ * Requires the ADMIN role (historical value 'manager' on profiles): manages
+ * periods, accounts, roles, and the org chart. Does NOT grant approval
+ * rights: those come from being the manager of a team (see requireTeamAccess).
  */
 export async function requireManager(): Promise<Profile> {
   const profile = await getProfile();
@@ -34,9 +34,9 @@ export async function requireManager(): Promise<Profile> {
 }
 
 /**
- * Accesso alle pagine di team: admin, osservatore globale, o manager di
- * almeno un team. Ritorna anche gli id dei team gestiti, da cui le pagine
- * derivano dove l'utente può AGIRE (il resto è sola lettura via RLS).
+ * Access to team pages: admin, global viewer, or manager of at least one
+ * team. Also returns the ids of the managed teams, which pages use to
+ * decide where the user can ACT (the rest is read-only via RLS).
  */
 export async function requireTeamAccess(): Promise<{
   profile: Profile;

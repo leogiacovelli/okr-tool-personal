@@ -29,7 +29,7 @@ export default function StartEvaluationButton({ setId }: { setId: string }) {
         onClick={start}
         className="rounded-lg bg-violet-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Avvia valutazione di fine semestre
+        Start end-of-semester evaluation
       </button>
       {msg && <p className="text-sm text-red-600 dark:text-red-400">{msg}</p>}
     </div>

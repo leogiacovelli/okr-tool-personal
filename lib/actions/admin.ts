@@ -8,7 +8,7 @@ import { requireManager } from "@/lib/auth";
 import { periodInput, inviteInput, teamInput } from "@/lib/validation";
 import type { Team } from "@/lib/types";
 
-/** Crea un nuovo semestre (solo manager; RLS lo impone anche a DB). */
+/** Creates a new semester (manager only; also enforced by RLS at the DB level). */
 export async function createPeriodAction(formData: FormData) {
   const profile = await requireManager();
 
@@ -30,7 +30,7 @@ export async function createPeriodAction(formData: FormData) {
   });
 
   if (error) {
-    const msg = error.code === "23505" ? "Esiste già un periodo con questa etichetta" : error.message;
+    const msg = error.code === "23505" ? "A period with this label already exists" : error.message;
     redirect(`/admin/periods?error=${encodeURIComponent(msg)}`);
   }
 
@@ -38,7 +38,7 @@ export async function createPeriodAction(formData: FormData) {
   redirect("/admin/periods?ok=1");
 }
 
-/** Legge i campi team di un form (stringa vuota → null). */
+/** Reads a form's team fields (empty string → null). */
 function teamFields(formData: FormData) {
   const managerId = String(formData.get("manager_id") ?? "");
   const parentId = String(formData.get("parent_team_id") ?? "");
@@ -49,7 +49,7 @@ function teamFields(formData: FormData) {
   };
 }
 
-/** Crea un team nell'organigramma (solo admin; RLS lo impone anche a DB). */
+/** Creates a team in the org chart (admin only; also enforced by RLS at the DB level). */
 export async function createTeamAction(formData: FormData) {
   await requireManager();
   const parsed = teamInput.safeParse(teamFields(formData));
@@ -60,7 +60,7 @@ export async function createTeamAction(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.from("teams").insert(parsed.data);
   if (error) {
-    const msg = error.code === "23505" ? "Esiste già un team con questo nome" : error.message;
+    const msg = error.code === "23505" ? "A team with this name already exists" : error.message;
     redirect(`/admin/teams?error=${encodeURIComponent(msg)}`);
   }
 
@@ -68,7 +68,7 @@ export async function createTeamAction(formData: FormData) {
   redirect("/admin/teams?ok=1");
 }
 
-/** Aggiorna manager e posizione di un team (con controllo anti-cicli). */
+/** Updates a team's manager and position (with anti-cycle check). */
 export async function updateTeamAction(formData: FormData) {
   await requireManager();
   const teamId = String(formData.get("team_id") ?? "");
@@ -79,7 +79,7 @@ export async function updateTeamAction(formData: FormData) {
 
   const supabase = await createClient();
 
-  // Un team non può stare sotto sé stesso né sotto un proprio discendente.
+  // A team can't sit under itself or under one of its own descendants.
   if (parsed.data.parent_team_id) {
     const { data: teamsData } = await supabase.from("teams").select("id, parent_team_id");
     const teams = (teamsData ?? []) as Pick<Team, "id" | "parent_team_id">[];
@@ -88,7 +88,7 @@ export async function updateTeamAction(formData: FormData) {
       if (cursor === teamId) {
         redirect(
           `/admin/teams?error=${encodeURIComponent(
-            "Struttura non valida: un team non può stare sotto sé stesso o un suo sotto-team"
+            "Invalid structure: a team can't sit under itself or one of its own sub-teams"
           )}`
         );
       }
@@ -98,7 +98,7 @@ export async function updateTeamAction(formData: FormData) {
 
   const { error } = await supabase.from("teams").update(parsed.data).eq("id", teamId);
   if (error) {
-    const msg = error.code === "23505" ? "Esiste già un team con questo nome" : error.message;
+    const msg = error.code === "23505" ? "A team with this name already exists" : error.message;
     redirect(`/admin/teams?error=${encodeURIComponent(msg)}`);
   }
 
@@ -106,13 +106,13 @@ export async function updateTeamAction(formData: FormData) {
   redirect("/admin/teams?ok=1");
 }
 
-/** Sposta una persona in un altro team (cambia anche chi la approva). */
+/** Moves a person to another team (also changes who approves them). */
 export async function movePersonAction(formData: FormData) {
   await requireManager();
   const profileId = String(formData.get("profile_id") ?? "");
   const teamId = String(formData.get("team_id") ?? "");
   if (!profileId || !teamId) {
-    redirect(`/admin/members?error=${encodeURIComponent("Selezione non valida")}`);
+    redirect(`/admin/members?error=${encodeURIComponent("Invalid selection")}`);
   }
 
   const supabase = await createClient();
@@ -129,9 +129,9 @@ export async function movePersonAction(formData: FormData) {
 }
 
 /**
- * Cambia il ruolo di un profilo (solo manager). Protezioni:
- * - non puoi cambiare il TUO ruolo (evita di chiuderti fuori per sbaglio);
- * - il DB rifiuta comunque di rimuovere l'ultimo manager (trigger).
+ * Changes a profile's role (manager only). Protections:
+ * - you can't change YOUR OWN role (avoids accidentally locking yourself out);
+ * - the DB also rejects removing the last manager (trigger).
  */
 export async function updateRoleAction(formData: FormData) {
   const manager = await requireManager();
@@ -140,12 +140,12 @@ export async function updateRoleAction(formData: FormData) {
   const role = String(formData.get("role") ?? "");
 
   if (!["member", "viewer", "manager"].includes(role)) {
-    redirect(`/admin/members?error=${encodeURIComponent("Ruolo non valido")}`);
+    redirect(`/admin/members?error=${encodeURIComponent("Invalid role")}`);
   }
   if (profileId === manager.id) {
     redirect(
       `/admin/members?error=${encodeURIComponent(
-        "Non puoi cambiare il tuo stesso ruolo: chiedi a un altro manager (o via SQL)"
+        "You can't change your own role: ask another manager (or do it via SQL)"
       )}`
     );
   }
@@ -162,9 +162,9 @@ export async function updateRoleAction(formData: FormData) {
 }
 
 /**
- * Invita un nuovo membro via email (Supabase Auth admin API).
- * Richiede SUPABASE_SERVICE_ROLE_KEY; il profilo viene creato dal trigger
- * on_auth_user_created con ruolo 'member'.
+ * Invites a new member by email (Supabase Auth admin API).
+ * Requires SUPABASE_SERVICE_ROLE_KEY; the profile is created by the
+ * on_auth_user_created trigger with role 'member'.
  */
 export async function inviteMemberAction(formData: FormData) {
   await requireManager();
@@ -181,7 +181,7 @@ export async function inviteMemberAction(formData: FormData) {
   if (!admin) {
     redirect(
       `/admin/members?error=${encodeURIComponent(
-        "SUPABASE_SERVICE_ROLE_KEY non configurata: invita l'utente dal dashboard Supabase (Authentication → Users → Invite)"
+        "SUPABASE_SERVICE_ROLE_KEY not configured: invite the user from the Supabase dashboard (Authentication → Users → Invite)"
       )}`
     );
   }

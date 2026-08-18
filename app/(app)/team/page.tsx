@@ -6,10 +6,11 @@ import StatusBadge from "@/components/StatusBadge";
 import type { OkrSet, Period, Profile, Team } from "@/lib/types";
 
 /**
- * Vista Team, raggruppata per team dell'organigramma.
- * Chi vede cosa lo decide la RLS: qui arrivano già solo i profili visibili
- * all'utente (il proprio sottoalbero per i manager, tutto per admin/viewer).
- * Sul team che l'utente GESTISCE può agire; sul resto è sola lettura.
+ * Team view, grouped by org-chart team.
+ * Who sees what is decided by RLS: only the profiles visible to the
+ * user arrive here (their own subtree for managers, everything for
+ * admin/viewer). The team the user MANAGES is actionable; the rest is
+ * read-only.
  */
 export default async function TeamPage({
   searchParams,
@@ -28,8 +29,8 @@ export default async function TeamPage({
 
   const periods = (periodsData ?? []) as Period[];
   const teams = (teamsData ?? []) as Team[];
-  // Tutti i profili visibili (per risolvere i nomi dei manager, anche
-  // osservatori); negli elenchi compaiono solo self esclusi e non-viewer.
+  // All visible profiles (used to resolve manager names, including
+  // viewers); listings only show non-self, non-viewer profiles.
   const allPeople = (peopleData ?? []) as Profile[];
   const people = allPeople.filter((p) => p.id !== me.id && p.role !== "viewer");
   const period =
@@ -41,7 +42,7 @@ export default async function TeamPage({
   const sets = (setsData ?? []) as OkrSet[];
   const setFor = (memberId: string) => sets.find((s) => s.profile_id === memberId);
 
-  // Ordina i team con i padri prima dei figli (profondità nell'albero).
+  // Sort teams with parents before children (depth in the tree).
   const depth = (t: Team): number => {
     let d = 0;
     let cur: Team | undefined = t;
@@ -63,7 +64,7 @@ export default async function TeamPage({
     return p ? p.full_name || p.email : null;
   };
 
-  // Da fare: solo sui team che gestisco io.
+  // To do: only on the teams I manage.
   const actionable = sets.filter((s) => {
     const owner = people.find((p) => p.id === s.profile_id);
     return owner && managedTeamIds.includes(owner.team_id);
@@ -76,7 +77,7 @@ export default async function TeamPage({
       <div>
         <h1 className="text-2xl font-semibold">Team</h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Le persone visibili a te, raggruppate per team. Puoi agire solo dove sei manager.
+          People visible to you, grouped by team. You can act only where you're the manager.
         </p>
       </div>
 
@@ -102,12 +103,12 @@ export default async function TeamPage({
         <div className="flex flex-wrap gap-3 text-sm">
           {toReview > 0 && (
             <span className="rounded-lg bg-blue-100 px-3 py-1.5 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-              {toReview} review da fare
+              {toReview} review{toReview === 1 ? "" : "s"} to do
             </span>
           )}
           {toEvaluate > 0 && (
             <span className="rounded-lg bg-violet-100 px-3 py-1.5 text-violet-800 dark:bg-violet-950 dark:text-violet-300">
-              {toEvaluate} in valutazione
+              {toEvaluate} in evaluation
             </span>
           )}
         </div>
@@ -115,8 +116,8 @@ export default async function TeamPage({
 
       {groups.length === 0 && (
         <p className="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700">
-          Nessuna persona visibile. Gli account si gestiscono da «Membri», la struttura da
-          «Organigramma».
+          No people visible. Accounts are managed from "Members", the structure from
+          "Org Chart".
         </p>
       )}
 
@@ -126,11 +127,11 @@ export default async function TeamPage({
             <h2 className="font-semibold">{team.name}</h2>
             <span className="text-xs text-zinc-500 dark:text-zinc-400">
               manager: {nameOf(team.manager_id) ?? "—"}
-              {managedTeamIds.includes(team.id) && " (tu)"}
+              {managedTeamIds.includes(team.id) && " (you)"}
             </span>
             {!managedTeamIds.includes(team.id) && (
               <span className="rounded-full border border-dashed border-zinc-300 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                Sola lettura
+                Read-only
               </span>
             )}
           </div>
@@ -138,8 +139,8 @@ export default async function TeamPage({
             <table className="w-full bg-white text-sm dark:bg-zinc-900">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  <th className="px-4 py-3 font-medium">Persona</th>
-                  <th className="px-4 py-3 font-medium">Stato {period ? `· ${period.label}` : ""}</th>
+                  <th className="px-4 py-3 font-medium">Person</th>
+                  <th className="px-4 py-3 font-medium">Status {period ? `· ${period.label}` : ""}</th>
                   <th className="px-4 py-3 font-medium">OKR Result</th>
                   <th className="px-4 py-3 font-medium"></th>
                 </tr>
@@ -167,7 +168,7 @@ export default async function TeamPage({
                           href={`/team/${m.id}${period ? `?period=${period.id}` : ""}`}
                           className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                         >
-                          Apri →
+                          Open →
                         </Link>
                       </td>
                     </tr>

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
-/* Il tema è pilotato da data-theme sull'elemento html (toggle utente),
-   inizializzato da localStorage o dalla preferenza di sistema. */
+/* The theme is driven by data-theme on the html element (user toggle),
+   initialized from localStorage or the system preference. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root {

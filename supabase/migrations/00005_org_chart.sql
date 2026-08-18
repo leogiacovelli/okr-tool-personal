@@ -1,27 +1,30 @@
 -- ============================================================================
--- ORGANIGRAMMA: team con manager e gerarchia.
+-- ORG CHART: teams with a manager and hierarchy.
 --
--- Da questa migrazione approvazioni e visibilità derivano dalla STRUTTURA:
---   · ogni team ha un manager (manager_id) e può stare sotto un altro team
+-- From this migration on, approvals and visibility derive from the STRUCTURE:
+--   · every team has a manager (manager_id) and can sit under another team
 --     (parent_team_id);
---   · gli OKR di una persona li approva IL MANAGER DEL SUO TEAM;
---   · un manager AGISCE solo sul proprio team e LEGGE tutto il sottoalbero;
---   · tra rami paralleli (es. Marketing e Vendite) non c'è alcuna visibilità.
+--   · a person's OKRs are approved by THE MANAGER OF THEIR TEAM;
+--   · a manager ACTS only on their own team and READS the whole subtree;
+--   · there is no visibility at all between parallel branches (e.g.
+--     Marketing and Sales).
 --
--- I ruoli globali su profiles cambiano significato:
---   'manager' → ADMIN: amministra periodi, account, ruoli e organigramma,
---               e legge tutto. NON dà più diritti di approvazione: quelli
---               vengono solo dall'essere manager_id di un team.
---   'viewer'  → osservatore globale: legge tutto, non tocca nulla.
---   'member'  → vede solo i propri OKR (+ il proprio approvatore).
+-- Global roles on profiles change meaning:
+--   'manager' → ADMIN: administers periods, accounts, roles, and the org
+--               chart, and reads everything. No longer grants approval
+--               rights on its own: those come only from being a team's
+--               manager_id.
+--   'viewer'  → global observer: reads everything, touches nothing.
+--   'member'  → sees only their own OKRs (+ their approver).
 --
--- Dati: viene creato il team "Direzione Marketing" (manager: l'attuale
--- osservatrice) sopra a "Marketing" (manager: l'attuale admin), e l'admin
--- viene spostato come membro della Direzione → i suoi OKR li approva lei.
+-- Data: creates the "Marketing Leadership" team (manager: the current
+-- viewer) above "Marketing" (manager: the current admin), and moves the
+-- admin into Marketing Leadership as a member → their OKRs are then
+-- approved by the viewer.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- 1. Struttura
+-- 1. Structure
 -- ---------------------------------------------------------------------------
 alter table public.teams add column if not exists manager_id uuid references public.profiles (id);
 alter table public.teams add column if not exists parent_team_id uuid references public.teams (id);
@@ -29,10 +32,10 @@ alter table public.teams add constraint teams_not_own_parent
   check (parent_team_id is null or parent_team_id <> id);
 
 -- ---------------------------------------------------------------------------
--- 2. Funzioni gerarchia (SECURITY DEFINER: niente ricorsione RLS)
+-- 2. Hierarchy functions (SECURITY DEFINER: no RLS recursion)
 -- ---------------------------------------------------------------------------
 
--- Admin globale (ruolo storico 'manager').
+-- Global admin (historical role 'manager').
 create or replace function public.is_admin()
 returns boolean
 language sql stable security definer set search_path = public
@@ -40,7 +43,7 @@ as $$
   select exists (select 1 from public.profiles where id = auth.uid() and role = 'manager');
 $$;
 
--- Osservatore globale.
+-- Global viewer.
 create or replace function public.is_global_viewer()
 returns boolean
 language sql stable security definer set search_path = public
@@ -48,7 +51,7 @@ as $$
   select exists (select 1 from public.profiles where id = auth.uid() and role = 'viewer');
 $$;
 
--- Chi approva i MIEI OKR: il manager del team a cui appartengo.
+-- Who approves MY OKRs: the manager of the team I belong to.
 create or replace function public.my_approver()
 returns uuid
 language sql stable security definer set search_path = public
@@ -59,7 +62,7 @@ as $$
    where p.id = auth.uid();
 $$;
 
--- Sono io il manager del team di p_profile? (= posso approvare i suoi OKR)
+-- Am I the manager of p_profile's team? (= can I approve their OKRs)
 create or replace function public.manages_team_of(p_profile uuid)
 returns boolean
 language sql stable security definer set search_path = public
@@ -72,8 +75,8 @@ as $$
   );
 $$;
 
--- p_profile appartiene a un team nel SOTTOALBERO dei team che gestisco?
--- (= lo leggo, in sola lettura se non è il mio team diretto)
+-- Does p_profile belong to a team in the SUBTREE of teams I manage?
+-- (= I can read it, read-only if it isn't my direct team)
 create or replace function public.in_managed_subtree(p_profile uuid)
 returns boolean
 language sql stable security definer set search_path = public
@@ -89,7 +92,7 @@ as $$
   );
 $$;
 
--- Posso LEGGERE il profilo/gli OKR di p_profile?
+-- Can I READ p_profile's profile/OKRs?
 create or replace function public.can_read_profile(p_profile uuid)
 returns boolean
 language sql stable security definer set search_path = public
@@ -98,10 +101,10 @@ as $$
       or public.is_admin()
       or public.is_global_viewer()
       or public.in_managed_subtree(p_profile)
-      or p_profile = public.my_approver();  -- il membro vede il suo approvatore
+      or p_profile = public.my_approver();  -- a member can see their approver
 $$;
 
--- Ridefinita: accesso alle pagine di team (admin, viewer, o manager di team).
+-- Redefined: access to team pages (admin, viewer, or team manager).
 create or replace function public.can_view_team()
 returns boolean
 language sql stable security definer set search_path = public
@@ -112,7 +115,7 @@ as $$
 $$;
 
 -- ---------------------------------------------------------------------------
--- 3. Policy RLS riscritte sulla gerarchia
+-- 3. RLS policies rewritten around the hierarchy
 -- ---------------------------------------------------------------------------
 
 drop policy if exists profiles_select on public.profiles;
@@ -125,8 +128,8 @@ create policy okr_sets_select on public.okr_sets
   for select to authenticated
   using (public.can_read_profile(profile_id));
 
--- Scrittura: proprietario, oppure manager DIRETTO del team del proprietario.
--- (admin e viewer NON scrivono; il sottoalbero è sola lettura)
+-- Write access: the owner, or the DIRECT manager of the owner's team.
+-- (admin and viewer do NOT write; the subtree is read-only)
 drop policy if exists okr_sets_update on public.okr_sets;
 create policy okr_sets_update on public.okr_sets
   for update to authenticated
@@ -183,7 +186,7 @@ create policy review_comments_insert on public.review_comments
     )
   );
 
--- teams: struttura modificabile solo dall'admin.
+-- teams: structure editable only by the admin.
 create policy teams_insert on public.teams
   for insert to authenticated
   with check (public.is_admin());
@@ -194,9 +197,9 @@ create policy teams_update on public.teams
   with check (public.is_admin());
 
 -- ---------------------------------------------------------------------------
--- 4. Trigger: la state machine ora usa l'organigramma
---    (reviewer = manager del team del proprietario; auth.uid() NULL bypassa
---    i controlli di identità ma non quelli di integrità)
+-- 4. Trigger: the state machine now uses the org chart
+--    (reviewer = the owner's team manager; auth.uid() NULL bypasses
+--    identity checks but not integrity checks)
 -- ---------------------------------------------------------------------------
 create or replace function public.tg_okr_sets_transition()
 returns trigger
@@ -216,7 +219,7 @@ begin
   v_is_reviewer := v_bypass or public.manages_team_of(old.profile_id);
 
   if new.profile_id <> old.profile_id or new.period_id <> old.period_id then
-    raise exception 'Proprietario e periodo di un set OKR non sono modificabili';
+    raise exception 'The owner and period of an OKR set cannot be changed';
   end if;
 
   if new.status = old.status then
@@ -224,11 +227,11 @@ begin
        or new.submitted_at is distinct from old.submitted_at
        or new.approved_at  is distinct from old.approved_at
        or new.completed_at is distinct from old.completed_at then
-      raise exception 'Questi campi sono gestiti automaticamente dal sistema';
+      raise exception 'These fields are managed automatically by the system';
     end if;
     if new.results_proposed_at is distinct from old.results_proposed_at
        and not (v_is_owner and old.status = 'evaluation') then
-      raise exception 'La proposta dei risultati è consentita solo in fase di valutazione';
+      raise exception 'Proposing results is only allowed during the evaluation phase';
     end if;
     return new;
   end if;
@@ -241,35 +244,35 @@ begin
 
   if old.status in ('draft', 'changes_requested') and new.status = 'submitted' then
     if not v_is_owner then
-      raise exception 'Solo il proprietario può inviare i propri obiettivi';
+      raise exception 'Only the owner can submit their own objectives';
     end if;
     select count(*), coalesce(sum(weight), 0)
       into v_count, v_weight_sum
       from public.objectives where set_id = old.id;
     if v_count = 0 then
-      raise exception 'Aggiungi almeno un obiettivo prima di inviare';
+      raise exception 'Add at least one objective before submitting';
     end if;
     if round(v_weight_sum, 2) <> 100.00 then
-      raise exception 'La somma dei pesi deve essere il 100%% (attuale: % %%)', round(v_weight_sum, 2);
+      raise exception 'The sum of the weights must be 100%% (current: % %%)', round(v_weight_sum, 2);
     end if;
     new.submitted_at := now();
 
   elsif old.status = 'submitted' and new.status = 'approved' then
-    if not v_is_reviewer then raise exception 'Solo il manager del team può approvare'; end if;
+    if not v_is_reviewer then raise exception 'Only the team manager can approve'; end if;
     new.approved_at := now();
 
   elsif old.status = 'submitted' and new.status = 'changes_requested' then
-    if not v_is_reviewer then raise exception 'Solo il manager del team può richiedere modifiche'; end if;
+    if not v_is_reviewer then raise exception 'Only the team manager can request changes'; end if;
 
   elsif old.status = 'approved' and new.status = 'evaluation' then
-    if not v_is_reviewer then raise exception 'Solo il manager del team può aprire la valutazione'; end if;
+    if not v_is_reviewer then raise exception 'Only the team manager can open the evaluation'; end if;
 
   elsif old.status = 'evaluation' and new.status = 'completed' then
-    if not v_is_reviewer then raise exception 'Solo il manager del team può confermare la valutazione'; end if;
+    if not v_is_reviewer then raise exception 'Only the team manager can confirm the evaluation'; end if;
     select count(*) into v_missing
       from public.objectives where set_id = old.id and final_score is null;
     if v_missing > 0 then
-      raise exception 'Tutti gli obiettivi devono avere una %% confermata prima di chiudere il semestre';
+      raise exception 'Every objective must have a confirmed %% before closing the semester';
     end if;
     select round(sum(weight * final_score) / nullif(sum(weight), 0), 2)
       into v_score
@@ -278,7 +281,7 @@ begin
     new.completed_at := now();
 
   else
-    raise exception 'Transizione di stato non consentita: % → %', old.status, new.status;
+    raise exception 'State transition not allowed: % → %', old.status, new.status;
   end if;
 
   return new;
@@ -296,7 +299,7 @@ declare
   v_is_owner    boolean;
   v_is_reviewer boolean;
 begin
-  -- Operazioni di sistema: nessun controllo di permesso (CHECK sempre attivi).
+  -- System operations: no permission checks (CHECK constraints always active).
   if v_actor is null then
     if tg_op = 'DELETE' then return old; end if;
     return new;
@@ -307,7 +310,7 @@ begin
    where s.id = coalesce(new.set_id, old.set_id);
 
   if v_status is null then
-    raise exception 'Set OKR inesistente';
+    raise exception 'OKR set does not exist';
   end if;
 
   v_is_owner    := (v_actor = v_owner);
@@ -317,23 +320,23 @@ begin
     if v_is_owner and v_status in ('draft', 'changes_requested') then
       if new.result_value is not null or new.result_note is not null
          or new.proposed_score is not null or new.final_score is not null then
-        raise exception 'Risultati e punteggi non si impostano in fase di definizione';
+        raise exception 'Results and scores cannot be set during the definition phase';
       end if;
       return new;
     end if;
-    raise exception 'Non puoi aggiungere obiettivi in questo stato';
+    raise exception 'You cannot add objectives in this state';
   end if;
 
   if tg_op = 'DELETE' then
     if v_is_owner and v_status in ('draft', 'changes_requested') then
       return old;
     end if;
-    raise exception 'Non puoi eliminare obiettivi in questo stato';
+    raise exception 'You cannot delete objectives in this state';
   end if;
 
   -- UPDATE
   if new.set_id <> old.set_id then
-    raise exception 'Un obiettivo non può cambiare set';
+    raise exception 'An objective cannot change set';
   end if;
 
   if v_is_owner and v_status in ('draft', 'changes_requested') then
@@ -341,7 +344,7 @@ begin
        or new.result_note is distinct from old.result_note
        or new.proposed_score is distinct from old.proposed_score
        or new.final_score is distinct from old.final_score then
-      raise exception 'Risultati e punteggi non si modificano in fase di definizione';
+      raise exception 'Results and scores cannot be changed during the definition phase';
     end if;
     return new;
   end if;
@@ -352,32 +355,32 @@ begin
        is distinct from
        row(old.objective, old.key_result, old.smart_requirements, old.starting_point,
            old.target_outcome, old.metric_type, old.weight, old.position) then
-      raise exception 'In fase di valutazione gli obiettivi non si modificano: solo risultati e %%';
+      raise exception 'Objectives cannot be edited during evaluation: only results and %%';
     end if;
 
-    -- Il manager del team conferma/corregge; la proposta del membro resta sua.
+    -- The team manager confirms/corrects; the member's proposal stays theirs.
     if v_is_reviewer then
       if new.proposed_score is distinct from old.proposed_score and not v_is_owner then
-        raise exception 'La %% proposta dal membro non è modificabile dal reviewer';
+        raise exception 'The %% proposed by the member cannot be changed by the reviewer';
       end if;
       return new;
     end if;
 
     if v_is_owner then
       if new.final_score is distinct from old.final_score then
-        raise exception 'La %% confermata è riservata al manager del team';
+        raise exception 'The confirmed %% is reserved to the team manager';
       end if;
       return new;
     end if;
   end if;
 
-  raise exception 'Modifica non consentita in questo stato';
+  raise exception 'Change not allowed in this state';
 end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 5. Dati: gerarchia iniziale
---    Direzione Marketing (manager: l'osservatrice) → Marketing (manager: admin)
+-- 5. Data: initial hierarchy
+--    Marketing Leadership (manager: the viewer) → Marketing (manager: admin)
 -- ---------------------------------------------------------------------------
 do $$
 declare
@@ -391,15 +394,15 @@ begin
   select id into v_mkt    from public.teams    where name = 'Marketing' limit 1;
 
   insert into public.teams (name, manager_id)
-  values ('Direzione Marketing', v_viewer)
+  values ('Marketing Leadership', v_viewer)
   returning id into v_dir;
 
   update public.teams
      set manager_id = v_admin, parent_team_id = v_dir
    where id = v_mkt;
 
-  -- L'admin e l'osservatrice appartengono alla Direzione: gli OKR dell'admin
-  -- li approva il manager della Direzione (l'osservatrice).
+  -- The admin and the viewer belong to Marketing Leadership: the admin's
+  -- OKRs are approved by Marketing Leadership's manager (the viewer).
   if v_admin  is not null then update public.profiles set team_id = v_dir where id = v_admin;  end if;
   if v_viewer is not null then update public.profiles set team_id = v_dir where id = v_viewer; end if;
 end $$;

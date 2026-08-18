@@ -22,8 +22,8 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      aria-label="Cambia tema"
-      title="Cambia tema chiaro/scuro"
+      aria-label="Toggle theme"
+      title="Toggle light/dark theme"
       className="rounded-lg border border-zinc-300 px-2 py-1 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
     >
       {theme === "dark" ? "☀️" : "🌙"}
